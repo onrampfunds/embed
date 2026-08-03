@@ -37,8 +37,19 @@ describe('resolveTheme', () => {
   it('rejects a radius that is not a length', () => {
     expect(resolveTheme({ radius: 'calc(100% - 2px)' }).tokens.radius).toBe(DEFAULT_TOKENS.radius);
     expect(resolveTheme({ radius: -4 }).tokens.radius).toBe(DEFAULT_TOKENS.radius);
+    expect(resolveTheme({ radius: '10' }).tokens.radius).toBe(DEFAULT_TOKENS.radius);
     expect(resolveTheme({ radius: 0 }).tokens.radius).toBe('0px');
     expect(resolveTheme({ radius: '1.5rem' }).tokens.radius).toBe('1.5rem');
+  });
+
+  it('accepts a zero radius in every notation, so a square partner stays square', () => {
+    for (const radius of [0, '0', '0px', '0rem', '0em']) {
+      const theme = resolveTheme({ radius });
+      expect(theme.tokens.radius, `radius ${JSON.stringify(radius)}`).toBe(
+        radius === 0 ? '0px' : radius,
+      );
+      expect(theme.warnings).toEqual([]);
+    }
   });
 
   it('rejects a font stack carrying anything but families', () => {

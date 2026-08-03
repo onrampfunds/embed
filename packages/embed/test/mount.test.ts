@@ -353,11 +353,24 @@ describe('mount', () => {
   });
 
   it('installs no observers and no timers', () => {
-    const timer = vi.spyOn(globalThis, 'setInterval');
+    // Container queries do the responsive work, so nothing here should ever need to watch the
+    // DOM or wake up later. Stubbed rather than assigned, so nothing leaks into the next test.
     const raf = vi.fn();
-    (globalThis as Record<string, unknown>)['requestAnimationFrame'] = raf;
+    const resize = vi.fn();
+    const mutation = vi.fn();
+    vi.stubGlobal('requestAnimationFrame', raf);
+    vi.stubGlobal('ResizeObserver', class { constructor() { resize(); } observe(): void {} });
+    vi.stubGlobal('MutationObserver', class { constructor() { mutation(); } observe(): void {} });
+
+    const interval = vi.spyOn(globalThis, 'setInterval');
+    const timeout = vi.spyOn(globalThis, 'setTimeout');
+
     mount('#capital', validConfig());
-    expect(timer).not.toHaveBeenCalled();
+
+    expect(interval).not.toHaveBeenCalled();
+    expect(timeout).not.toHaveBeenCalled();
     expect(raf).not.toHaveBeenCalled();
+    expect(resize).not.toHaveBeenCalled();
+    expect(mutation).not.toHaveBeenCalled();
   });
 });

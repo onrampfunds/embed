@@ -31,9 +31,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       # Trusted publishing needs npm 11.5.1 or newer; Node 22 still ships npm 10.
+      # Pinned rather than `@latest` so a release is reproducible and a new npm
+      # major cannot break publishing on a day nobody touched this repo. Bump it
+      # deliberately.
       - name: Use an npm that supports trusted publishing
         run: |
-          npm install -g npm@latest
+          npm install -g npm@11.5.1
           npm --version
 
       - run: npm ci

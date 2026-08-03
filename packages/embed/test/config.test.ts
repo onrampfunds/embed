@@ -127,7 +127,15 @@ describe('normalize', () => {
       });
 
       it('allows http on loopback so a partner can develop locally', () => {
-        expect(ok({ ...base, applyUrl: 'http://localhost:3000/p/a' }).state).toBe('prequalified');
+        // `URL.hostname` keeps the brackets on an IPv6 host, so `[::1]` is the value to compare.
+        for (const host of ['localhost:3000', '127.0.0.1', '[::1]:3000']) {
+          expect(ok({ ...base, applyUrl: `http://${host}/p/a` }).state, host).toBe('prequalified');
+        }
+      });
+
+      it('does not mistake a hostname that merely contains a loopback name', () => {
+        expect(rejected({ ...base, applyUrl: 'http://localhost.evil.com/p/a' })).toContain('applyUrl');
+        expect(rejected({ ...base, applyUrl: 'http://127.0.0.1.evil.com/p/a' })).toContain('applyUrl');
       });
     });
   });
