@@ -1,0 +1,46 @@
+{
+  "name": "onrampfunds-embed",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Monorepo for @onrampfunds/embed and @onrampfunds/embed-react",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onrampfunds/embed.git"
+  },
+  "homepage": "https://github.com/onrampfunds/embed#readme",
+  "bugs": {
+    "url": "https://github.com/onrampfunds/embed/issues"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "clean": "node -e \"require('node:fs').rmSync('packages/embed/dist',{recursive:true,force:true});require('node:fs').rmSync('packages/embed-react/dist',{recursive:true,force:true})\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace @onrampfunds/embed",
+    "check:deps": "node scripts/check-zero-deps.mjs",
+    "check:size": "node scripts/check-bundle-size.mjs",
+    "check:network": "node scripts/check-no-network.mjs",
+    "check:pack": "node scripts/check-tarballs.mjs",
+    "check:versions": "node scripts/check-lockstep-versions.mjs",
+    "verify": "npm run typecheck && npm run build && npm test && npm run check:versions && npm run check:deps && npm run check:size && npm run check:network && npm run check:pack"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "@types/node": "^26.1.2",
+    "jsdom": "^25.0.1",
+    "rollup": "^4.29.1",
+    "rollup-plugin-dts": "^6.1.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Onramp embed — plain HTML</title>
+
+    <!--
+      A partner dashboard, roughly. The card sits in the sidebar among the partner's own content.
+
+      Everything here is deliberately plain: no build step, no framework, no bundler. Open this
+      file directly after `npm run build` at the repo root.
+    -->
+    <style>
+      :root {
+        --page: #f4f6fa;
+        --ink: #1b2536;
+        --muted: #6b7688;
+        --line: #e2e6ee;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 32px 20px 64px;
+        background: var(--page);
+        color: var(--ink);
+        font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      .shell { max-width: 1080px; margin: 0 auto; }
+      h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: -0.01em; }
+      .sub { margin: 0 0 28px; color: var(--muted); font-size: 13px; }
+      .layout { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+      @media (max-width: 780px) { .layout { grid-template-columns: 1fr; } }
+      .panel {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px;
+      }
+      .label {
+        margin: 0 0 10px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .figure { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.02em; }
+      .bars { display: flex; gap: 4px; align-items: flex-end; height: 46px; margin-top: 14px; }
+      .bars span { flex: 1; background: #d8e0ee; border-radius: 2px; }
+      .bars span:last-child { background: #2b5ce6; }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+      button {
+        padding: 7px 12px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      button[aria-pressed='true'] { background: var(--ink); color: #fff; border-color: var(--ink); }
+      #log {
+        margin-top: 14px;
+        padding: 10px 12px;
+        min-height: 44px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        color: var(--muted);
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="shell">
+      <h1>Cartwheel Commerce</h1>
+      <p class="sub">Seller dashboard — an example host page for <code>@onrampfunds/embed</code>.</p>
+
+      <div class="controls">
+        <button data-state="prequalified" aria-pressed="true">Prequalified</button>
+        <button data-state="expired" aria-pressed="false">Expired</button>
+        <button data-state="none" aria-pressed="false">No amount</button>
+        <button data-state="mounting" aria-pressed="false">Mounting</button>
+        <button data-state="mca" aria-pressed="false">Asset purchase copy</button>
+        <button data-state="dark" aria-pressed="false">Dark tokens</button>
+        <button data-state="hostile" aria-pressed="false">Failing contrast</button>
+      </div>
+
+      <div class="layout">
+        <div class="panel">
+          <p class="label">Net sales</p>
+          <p class="figure">$128,940</p>
+          <div class="bars">
+            <span style="height: 40%"></span><span style="height: 62%"></span>
+            <span style="height: 48%"></span><span style="height: 78%"></span>
+            <span style="height: 66%"></span><span style="height: 92%"></span>
+          </div>
+          <div id="log">onEvent output appears here.</div>
+        </div>
+
+        <!-- The card mounts here. Nothing else in this file knows anything about it. -->
+        <div id="capital"></div>
+      </div>
+    </div>
+
+    <script src="../../packages/embed/dist/onramp-embed.umd.js"></script>
+    <script>
+      const log = document.getElementById('log');
+      const lines = [];
+
+      /**
+       * In production this object is the prequalification response, fetched by the partner's own
+       * backend and injected into the page. The library never fetches it.
+       */
+      function configFor(variant) {
+        const base = {
+          amount: 40000,
+          currency: 'USD',
+          validUntil: '2099-08-06T07:00:00Z',
+          applyUrl: 'https://onrampfunds.com/p/abc123',
+          lexicon: 'loan',
+          partnerName: 'Cartwheel',
+          locale: 'en-US',
+          theme: { accent: '#2b5ce6', accentText: '#ffffff', radius: 10, font: 'system' },
+          onEvent: (name, meta) => {
+            lines.unshift(`${name} ${JSON.stringify(meta)}`);
+            log.textContent = lines.slice(0, 6).join('\n');
+          },
+        };
+
+        switch (variant) {
+          case 'expired':
+            return { ...base, validUntil: '2020-01-01T00:00:00Z' };
+          case 'none':
+            return { ...base, amount: null };
+          case 'mounting':
+            return { ...base, state: 'mounting' };
+          case 'mca':
+            return { ...base, lexicon: 'mca' };
+          case 'dark':
+            return {
+              ...base,
+              theme: {
+                accent: '#c6f04e',
+                accentText: '#10120e',
+                surface: '#14161a',
+                text: '#f2f4f0',
+                border: '#2a2e35',
+                radius: 2,
+                fontStack: "Georgia, 'Times New Roman', serif",
+              },
+            };
+          case 'hostile':
+            // Pale yellow accent with a white label: the contrast guard re-picks the label and
+            // leaves the accent alone. Watch the console.
+            return { ...base, theme: { ...base.theme, accent: '#f2e205', accentText: '#ffffff' } };
+          default:
+            return base;
+        }
+      }
+
+      let card = null;
+
+      function show(variant) {
+        card?.unmount();
+        card = Onramp.mount('#capital', configFor(variant));
+
+        if (card === null) {
+          // `null` means nothing was rendered — render your own fallback into the slot.
+          lines.unshift('mount returned null — the slot is yours');
+          log.textContent = lines.slice(0, 6).join('\n');
+        }
+      }
+
+      for (const button of document.querySelectorAll('[data-state]')) {
+        button.addEventListener('click', () => {
+          for (const other of document.querySelectorAll('[data-state]')) {
+            other.setAttribute('aria-pressed', String(other === button));
+          }
+          show(button.dataset.state);
+        });
+      }
+
+      show('prequalified');
+    </script>
+  </body>
+</html>

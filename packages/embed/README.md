@@ -1,0 +1,190 @@
+# @onrampfunds/embed
+
+Renders a merchant's Onramp Funds prequalification inside your own page, in a closed shadow root.
+
+**Zero dependencies. Zero network calls.** Your backend fetches the prequalification server-side
+and passes it in; the library renders what it is handed and nothing else. There is no token to
+mint, no CORS to negotiate, no third-party cookie, and no iframe.
+
+```sh
+npm install @onrampfunds/embed
+```
+
+```js
+import { mount } from '@onrampfunds/embed';
+
+mount('#capital', {
+  amount: 40000,
+  currency: 'USD',
+  validUntil: '2026-08-06T07:00:00Z',
+  applyUrl: 'https://onrampfunds.com/p/abc123...',
+  lexicon: 'loan',
+  copy: {
+    /* served strings — see "Copy" below */
+  },
+  theme: { accent: '#5B21B6', radius: 8, font: 'system' },
+  onEvent: (name, meta) => analytics.track(`onramp:${name}`, meta),
+});
+```
+
+Via a script tag, the same call is available as `Onramp.mount(...)`. See the
+[root README](../../README.md#install) for the CDN URL and its integrity hash.
+
+## `mount(target, config)`
+
+`target` is a CSS selector or an `Element`. The card is appended to it inside its own host element,
+so your element is left exactly as the library found it when you unmount.
+
+Returns a handle, or **`null` when nothing was rendered**. `null` is your cue to render your own
+fallback into the slot — it never means the merchant was rejected.
+
+```js
+const card = mount('#capital', config);
+
+card?.state; // 'prequalified' | 'expired' | 'mounting'
+card?.update(nextConfig); // re-render in place, returns the new state
+card?.unmount(); // remove the card and every listener it installed
+```
+
+### Config
+
+| Key | Type | Notes |
+| --- | --- | --- |
+| `amount` | `number \| null` | Major currency units — `40000` renders as `$40,000`. `null`, omitted, or `0` renders nothing. |
+| `currency` | `string` | ISO 4217. Defaults to `USD`. |
+| `validUntil` | `string` | ISO 8601. Once passed, the card renders its expired state. |
+| `applyUrl` | `string` | Required whenever there is an amount. Must be absolute `https:`. |
+| `lexicon` | `'loan' \| 'mca'` | Defaults to `loan`. Comes from the prequalification response. |
+| `partnerName` | `string` | Renders as "for {name}", and names the site being left. |
+| `locale` | `string` | BCP 47. Defaults to the browser's. |
+| `copy` | `object` | The served regulated strings. See below. |
+| `theme` | `object` | The seven tokens. See below. |
+| `state` | `'auto' \| 'mounting'` | Set `mounting` while you fetch client-side. |
+| `onEvent` | `function` | Analytics callback in your page. It does not phone home. |
+
+### States
+
+| State | What renders |
+| --- | --- |
+| `prequalified` | The full card. The only state that shows a figure. |
+| `expired` | The amount and mechanism line are **removed from the DOM, not dimmed** — a stale figure is a compliance problem. The action still works, because the current number exists on Onramp. |
+| `mounting` | Static blocks at roughly the final height. No spinner, no motion. |
+| none | Nothing. `mount` returns `null` and yields the slot. Never reads as a rejection. |
+| malformed | Nothing, and the reason is logged to the console. Never a broken card in production. |
+
+## Copy
+
+Regulated strings are **served in the prequalification response, not compiled into this package**.
+If they were baked in, a partner pinned to an old version would keep showing an old disclosure
+after compliance revised it, and we would have no way to know.
+
+Pass the `copy` block from the response straight through:
+
+| Key | What it is |
+| --- | --- |
+| `qualifier` | The "pre-qualified, not approved" band. Load-bearing, not decoration. |
+| `mechanism` | One sentence on how repayment works. |
+| `disclosure` | The disclosure footer. |
+| `expiredDisclosure` | The disclosure footer for the expired state. |
+
+**Every one has a baked fallback, and the library fails closed.** A string that is missing, `null`,
+empty, whitespace, or the wrong type renders the fallback. A card never renders without a
+disclosure.
+
+Everything else — the button label, the attribution row, the departure notice — is UI chrome that
+carries no regulatory weight, so it ships in the package.
+
+The two lexicons are not interchangeable. `mca` copy avoids "repayment", "term", "due", and
+"credit", and never frames the advance as a debt. An unrecognised `lexicon` is **refused** rather
+than guessed, because guessing would show an asset-purchase merchant loan vocabulary.
+
+## Theme
+
+Seven tokens, plus the optional `partnerName`. That is the whole surface.
+
+| Token | Drives |
+| --- | --- |
+| `accent` | Action fill, attribution dot, qualifier band tint and border. Never body text. |
+| `accentText` | The action label only. |
+| `surface` | Card fill, and the mix partner for every muted tone. |
+| `text` | Amount, qualifier, mechanism. Muted variants mix toward `surface`. |
+| `border` | Card outline, rules, dividers. |
+| `radius` | Card corner. A number is pixels. Inner elements derive from it, so `0` stays square and `24` stays coherent. |
+| `fontStack` | Set at the root and inherited. Also accepts `font`, and the keywords `system`, `sans`, `serif`, `mono`. |
+
+**Colours** accept hex, `rgb()`, `hsl()`, `oklab()`, `oklch()`, and common named colours. A value
+the library cannot parse is replaced with the Onramp default and the reason is logged — we would
+rather render a legible card in the wrong brand than an illegible one in the right brand.
+
+### The contrast guard
+
+Tokens arrive at runtime and never reach our server, so contrast is checked in the browser at
+mount, against WCAG AA (4.5:1 body text). The card derives its muted tones with `color-mix` in
+Oklab, and the guard reproduces those mixes exactly, so it measures the tones that actually render
+— the disclosure footer most of all, which is the tightest pairing on the card.
+
+There are two fallbacks, in order of how much they take away:
+
+1. **The action label is re-picked.** If `accentText` fails against `accent`, it becomes black or
+   white by luminance. Nothing else changes and the partner's accent survives. This is the common
+   case.
+2. **Safe mode.** Only if the body pairing itself cannot be rescued: neutral text and surface, the
+   accent demoted to a 3px top rule, and the action filled with ink. Guaranteed legible, and
+   visibly not the partner's brand.
+
+Both log a warning saying which pairing failed and by how much.
+
+## Events
+
+`onEvent(name, meta)` is called in your page for your own analytics. The library makes no request.
+
+| Event | When |
+| --- | --- |
+| `view` | A prequalified card rendered. Carries `amount`, `currency`, `lexicon`, `safeMode`, and which served strings fell back. |
+| `expired` | The expired card rendered. |
+| `click` | The action was activated. The navigation is never prevented. |
+| `skip` | Nothing rendered because there was no amount. |
+| `error` | The config was malformed. Carries the reason. |
+
+A handler that throws is caught and logged; it cannot take the card down.
+
+## Isolation
+
+The card renders into a **closed** shadow root. Your stylesheet cannot reach inside it, and it
+leaks nothing into your page. That is what keeps the "pre-qualified, not approved" qualifier from
+being hidden or shrunk — it is a regulatory requirement, not decoration, and
+[there is a test that tries](../../packages/embed/e2e/card.spec.ts).
+
+Two consequences worth knowing about:
+
+- **`:host` is pinned to `display: block`.** For important declarations the cascade runs the other
+  way round, so a shadow tree's rules beat the outer document's — your page cannot `display: none`
+  our host element. You can of course hide your own container, and `unmount()` is the supported way
+  to remove the card.
+- **Styles install through constructable stylesheets**, not an inline `<style>`, so you need no CSP
+  change beyond allowing our script source. There is a `<style>` fallback for older engines.
+
+## Sizing
+
+Every size is `clamp(min, N cqi, max)` against `container-type: inline-size` on the card root.
+There are no media queries and no viewport units — the card sizes itself from the element you give
+it and never knows the viewport. Verified at 300px, 520px, and 900px.
+
+Nothing observes the DOM: no `ResizeObserver`, no `MutationObserver`, no timers, no animation.
+
+## Browser support
+
+Any browser with shadow DOM, container queries, and `color-mix()` — Chrome/Edge 111+, Safari 16.4+,
+Firefox 113+. `mount()` degrades to a logged warning rather than throwing anywhere else.
+
+## Server-side rendering
+
+Importing the package on the server is inert — it touches no browser global at module scope. Call
+`mount()` on the client, after hydration; on the server it logs a warning and returns `null`.
+
+## License
+
+[MIT](LICENSE).
+
+**Trademark.** The MIT licence covers the code. It does not grant any right to use the Onramp Funds
+name, logo, or other trademarks, or to access the Onramp Funds API or services.
