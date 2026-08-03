@@ -88,6 +88,14 @@ describe('mount', () => {
       expect(textOf('.cta')).toBe('See your offer');
     });
 
+    it('sends no referrer, so the partner dashboard URL never reaches Onramp', () => {
+      // That URL routinely carries merchant identifiers. We do not want it, and a partner
+      // security review should not have to ask.
+      const cta = root().querySelector('a.cta') as HTMLAnchorElement;
+      expect(cta.getAttribute('rel')?.split(/\s+/)).toContain('noreferrer');
+      expect(cta.getAttribute('referrerpolicy')).toBe('no-referrer');
+    });
+
     it('states that the merchant is leaving, and names the partner', () => {
       expect(textOf('.departure')).toBe("Takes you to onrampfunds.com — you'll leave Cartwheel.");
     });

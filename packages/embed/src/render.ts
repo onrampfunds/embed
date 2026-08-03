@@ -114,7 +114,18 @@ function action(doc: Document, copy: ResolvedCopy, applyUrl: string): {
   cta.href = applyUrl;
   // A full-page navigation in the same tab. Not a popup, not a new tab — the merchant is
   // deliberately leaving the partner's product and that should be honest rather than disguised.
-  cta.rel = 'noopener';
+  //
+  // `noreferrer` is the load-bearing part. The card renders inside a merchant dashboard whose
+  // URL routinely carries merchant identifiers in the path or query, and without this the
+  // browser would hand that URL to onrampfunds.com on every click. We do not want it: the apply
+  // URL identifies the referral on its own, and attribution runs off a first-party cookie set
+  // after landing. Receiving partner data we never asked for is the opposite of the claim this
+  // library makes.
+  //
+  // Set as attributes rather than IDL properties: that is what the HTML parser and every engine
+  // reads, and it does not depend on a DOM implementation reflecting the property back.
+  cta.setAttribute('rel', 'noopener noreferrer');
+  cta.setAttribute('referrerpolicy', 'no-referrer');
   wrapper.appendChild(cta);
   wrapper.appendChild(el(doc, 'p', 'departure', copy.departure));
   return { wrapper, cta };

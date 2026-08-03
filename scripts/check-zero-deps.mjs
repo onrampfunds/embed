@@ -49,18 +49,37 @@ const bundles = [
   path.join(CORE, 'dist/onramp-embed.umd.js'),
 ];
 
+/**
+ * Every way a module specifier can survive into built output. The static forms matter most and
+ * are the easiest to miss: `import 'y'` has a quote right after the keyword, but
+ * `import { x } from 'y'` does not, so a naive `import\s*['"]` pattern sees nothing.
+ */
+const SPECIFIER_PATTERNS = [
+  { name: 'static import/export', pattern: /(?:^|[\s;})])(?:import|export)\b[^;]{0,300}?\bfrom\s*['"][^'"]+['"]/g },
+  { name: 'side-effect import', pattern: /(?:^|[\s;})])import\s*['"][^'"]+['"]/g },
+  { name: 'dynamic import', pattern: /\bimport\s*\(\s*['"][^'"]+['"]/g },
+  { name: 'require', pattern: /\brequire\s*\(\s*['"][^'"]+['"]/g },
+];
+
 for (const relative of bundles) {
   const file = path.join(ROOT, relative);
   if (!existsSync(file)) {
     report.check(`${relative} exists`, false, 'run `npm run build` first');
     continue;
   }
+
   const source = readFileSync(file, 'utf8');
-  const imports = source.match(/\b(?:import|require)\s*\(?\s*['"][^'"]+['"]/g) ?? [];
+  const found = [];
+  for (const { name, pattern } of SPECIFIER_PATTERNS) {
+    for (const match of source.match(pattern) ?? []) {
+      found.push(`${name}: ${match.trim().replace(/\s+/g, ' ')}`);
+    }
+  }
+
   report.check(
     `${relative} resolves nothing at runtime`,
-    imports.length === 0,
-    imports.length === 0 ? undefined : imports.join(', '),
+    found.length === 0,
+    found.length === 0 ? undefined : found.join(' | '),
   );
 }
 

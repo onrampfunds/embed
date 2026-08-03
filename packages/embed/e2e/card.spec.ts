@@ -211,6 +211,46 @@ test.describe('network', () => {
   });
 });
 
+test.describe('the click', () => {
+  test('sends no referrer, so the partner dashboard URL never reaches Onramp', async ({ page }) => {
+    await loadPartnerPage(page);
+    await mountCard(page, CONFIG);
+
+    let headers: Record<string, string> = {};
+    await page.route('https://onrampfunds.com/**', async (route) => {
+      headers = route.request().headers();
+      await route.fulfill({ status: 200, contentType: 'text/html', body: '<p>landed</p>' });
+    });
+
+    await page.evaluate(() => {
+      const cta = window.__roots[0]?.querySelector('.cta') as HTMLAnchorElement | null;
+      cta?.click();
+    });
+    await page.waitForURL('https://onrampfunds.com/**');
+
+    // The attribute assertions live in the unit suite; this is the one that proves the browser
+    // actually honours them on a real navigation.
+    expect(headers['referer']).toBeUndefined();
+  });
+
+  test('navigates in the same tab, without opening a window', async ({ page }) => {
+    await loadPartnerPage(page);
+    await mountCard(page, CONFIG);
+    await page.route('https://onrampfunds.com/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'text/html', body: '<p>landed</p>' }),
+    );
+
+    const before = page.context().pages().length;
+    await page.evaluate(() => {
+      const cta = window.__roots[0]?.querySelector('.cta') as HTMLAnchorElement | null;
+      cta?.click();
+    });
+    await page.waitForURL('https://onrampfunds.com/**');
+
+    expect(page.context().pages()).toHaveLength(before);
+  });
+});
+
 test.describe('states', () => {
   test('the expired card carries no figure anywhere in the tree', async ({ page }) => {
     await loadPartnerPage(page);
