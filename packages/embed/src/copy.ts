@@ -60,6 +60,8 @@ export const CHROME = {
   expiredCtaLabel: 'Check current amount on Onramp',
   expiredTitle: 'This estimate is out of date.',
   loadingLabel: 'Loading pre-qualification',
+  /** Only used where there is no apply URL to name — the mounting state, which shows no action. */
+  defaultApplyHost: 'onrampfunds.com',
 } as const;
 
 /**
@@ -95,6 +97,12 @@ export interface CopyInput {
   validUntil: string | null;
   /** The partner's name, or `null` — the departure notice reads "this site" without one. */
   partnerName: string | null;
+  /**
+   * Host of the apply URL, so the departure notice names where the merchant is actually going.
+   * Taken from the URL rather than asserted, so the card cannot claim a destination it was not
+   * given.
+   */
+  applyHost: string | null;
 }
 
 export function resolveCopy(input: CopyInput): ResolvedCopy {
@@ -145,7 +153,7 @@ export function resolveCopy(input: CopyInput): ResolvedCopy {
     eyebrow: CHROME.eyebrow,
     ctaLabel: input.expired ? CHROME.expiredCtaLabel : CHROME.ctaLabel,
     loadingLabel: CHROME.loadingLabel,
-    departure: `Takes you to onrampfunds.com — you'll leave ${site}.`,
+    departure: `Takes you to ${input.applyHost ?? CHROME.defaultApplyHost} — you'll leave ${site}.`,
     fellBack,
   };
 }

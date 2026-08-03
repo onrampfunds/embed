@@ -100,6 +100,23 @@ describe('mount', () => {
       expect(textOf('.departure')).toBe("Takes you to onrampfunds.com — you'll leave Cartwheel.");
     });
 
+    it('names the real destination, and warns when it is not an Onramp host', () => {
+      const console = silenceConsole();
+      mount('#capital', validConfig({ applyUrl: 'https://not-onramp.example/p/abc' }));
+
+      // The departure notice must track the link. A card that says "onrampfunds.com" while
+      // pointing elsewhere would be phishing with our own attribution row on it.
+      expect(textOf('.departure')).toContain('Takes you to not-onramp.example');
+      expect(console.warns.join(' ')).toContain('not an Onramp host');
+    });
+
+    it('does not warn for an Onramp subdomain', () => {
+      const console = silenceConsole();
+      mount('#capital', validConfig({ applyUrl: 'https://apply.onrampfunds.com/p/abc' }));
+      expect(textOf('.departure')).toContain('Takes you to apply.onrampfunds.com');
+      expect(console.warns.join(' ')).not.toContain('not an Onramp host');
+    });
+
     it('renders the mechanism line without any fee, rate, or term figure', () => {
       const mechanism = textOf('.mechanism__text');
       expect(mechanism.length).toBeGreaterThan(0);

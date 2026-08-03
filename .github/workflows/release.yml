@@ -55,23 +55,30 @@ jobs:
       # CI, because this is the last point at which a bad artefact can be stopped.
       - run: npm run verify
 
+      # A tag push always publishes; only workflow_dispatch consults `dry-run`.
+      #
+      # Written against `github.event_name` rather than relying on `inputs` being empty on a push
+      # event. It very likely is, but "is this expression truthy on a tag push" is not a question
+      # anyone should have to answer from memory while reading the step that publishes to a public
+      # registry — and being wrong fails in both directions, either a release that silently does
+      # nothing or one that publishes when it should not.
       - name: Publish @onrampfunds/embed
-        if: ${{ inputs.dry-run != true }}
+        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
         run: npm publish --workspace @onrampfunds/embed
 
       # Published second, because it depends on the exact core version above.
       - name: Publish @onrampfunds/embed-react
-        if: ${{ inputs.dry-run != true }}
+        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
         run: npm publish --workspace @onrampfunds/embed-react
 
       - name: Dry run
-        if: ${{ inputs.dry-run == true }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run == true }}
         run: |
           npm publish --workspace @onrampfunds/embed --dry-run
           npm publish --workspace @onrampfunds/embed-react --dry-run
 
       - name: Record the CDN integrity hash
-        if: ${{ inputs.dry-run != true }}
+        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
         run: |
           hash="sha384-$(openssl dgst -sha384 -binary packages/embed/dist/onramp-embed.umd.js | openssl base64 -A)"
           echo "### Subresource integrity" >> "$GITHUB_STEP_SUMMARY"

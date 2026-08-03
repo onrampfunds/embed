@@ -1,5 +1,5 @@
 import { LOG_PREFIX, VERSION } from './constants';
-import { normalize } from './config';
+import { isExpectedApplyHost, normalize } from './config';
 import { resolveCopy } from './copy';
 import { formatAmount, formatDate } from './format';
 import { attachStyles, renderCard } from './render';
@@ -122,12 +122,24 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     const validUntilLabel =
       config.validUntil !== null ? formatDate(config.validUntil, config.locale) : null;
 
+    // The card names the destination it was actually handed. An unexpected host is the partner's
+    // integration being wrong, not grounds to refuse — but they should hear about it, because a
+    // card carrying Onramp's attribution row should not be sending merchants somewhere else.
+    if (config.applyHost !== null && !isExpectedApplyHost(config.applyHost)) {
+      warn(
+        `applyUrl points at ${config.applyHost}, which is not an Onramp host. The card will say ` +
+          'so on the departure notice. Pass the applyUrl from the prequalification response ' +
+          'unchanged.',
+      );
+    }
+
     const copy = resolveCopy({
       lexicon: config.lexicon,
       copy: config.copy,
       expired: config.state === 'expired',
       validUntil: validUntilLabel,
       partnerName: config.partnerName,
+      applyHost: config.applyHost,
     });
 
     const amountLabel =

@@ -6,6 +6,8 @@ export interface NormalizedConfig {
   currency: string;
   lexicon: Lexicon;
   applyUrl: string;
+  /** Host of {@link applyUrl}, so the departure notice can name where the merchant is going. */
+  applyHost: string | null;
   partnerName: string | null;
   locale: string | undefined;
   validUntil: Date | null;
@@ -34,12 +36,35 @@ function cleanText(value: unknown, max: number): string | null {
   return stripped.length > max ? `${stripped.slice(0, max - 1).trimEnd()}…` : stripped;
 }
 
+/** `URL.hostname` keeps the brackets on an IPv6 host, so `[::1]` is the value to compare. */
+function isLoopback(hostname: string): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
+/** Where an apply URL is expected to point. */
+const ONRAMP_HOSTS = ['onrampfunds.com'];
+
+/**
+ * Whether the apply URL goes where the card says it goes.
+ *
+ * This is deliberately a warning and not a rejection. The apply URL comes from our own
+ * prequalification response, so anything else means the partner's integration is wrong and they
+ * should hear about it — but hard-coding our own domain as a validation rule would mean any future
+ * Onramp host silently breaks every card in production, which is a worse failure than the one it
+ * prevents. The card names the real destination either way, so it cannot misstate where it sends
+ * a merchant.
+ */
+export function isExpectedApplyHost(hostname: string): boolean {
+  if (isLoopback(hostname)) return true;
+  return ONRAMP_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+}
+
 /**
  * Only `https:` is accepted, so a prequalification cannot hand a merchant off over plain HTTP and
  * `javascript:` can never reach the anchor. Loopback over HTTP is allowed so a partner can develop
  * against a local Onramp.
  */
-function normalizeApplyUrl(value: unknown): string | null {
+function normalizeApplyUrl(value: unknown): URL | null {
   if (typeof value !== 'string' || value.trim().length === 0) return null;
   let url: URL;
   try {
@@ -47,9 +72,8 @@ function normalizeApplyUrl(value: unknown): string | null {
   } catch {
     return null;
   }
-  if (url.protocol === 'https:') return url.href;
-  const loopback = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
-  if (url.protocol === 'http:' && loopback) return url.href;
+  if (url.protocol === 'https:') return url;
+  if (url.protocol === 'http:' && isLoopback(url.hostname)) return url;
   return null;
 }
 
@@ -105,12 +129,12 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
 
   // The partner is still fetching. No amount is expected yet, so nothing else is required.
   if (config.state === 'mounting') {
-    return { ok: true, config: { ...base, state: 'mounting', amount: null, applyUrl: '' } };
+    return { ok: true, config: { ...base, state: 'mounting', amount: null, applyUrl: '', applyHost: null } };
   }
 
   // No amount is not an error and never reads as a rejection — we yield the slot and say nothing.
   if (config.amount === undefined || config.amount === null || config.amount === 0) {
-    return { ok: true, config: { ...base, state: 'none', amount: null, applyUrl: '' } };
+    return { ok: true, config: { ...base, state: 'none', amount: null, applyUrl: '', applyHost: null } };
   }
 
   if (typeof config.amount !== 'number' || !Number.isFinite(config.amount) || config.amount < 0) {
@@ -137,7 +161,8 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
     config: {
       ...base,
       currency,
-      applyUrl,
+      applyUrl: applyUrl.href,
+      applyHost: applyUrl.hostname,
       state: expired ? 'expired' : 'prequalified',
       // An expired card must not carry the figure anywhere, including in the DOM.
       amount: expired ? null : config.amount,

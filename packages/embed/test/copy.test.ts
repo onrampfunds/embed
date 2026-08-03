@@ -8,6 +8,7 @@ const input = (overrides: Partial<Parameters<typeof resolveCopy>[0]> = {}) =>
     expired: false,
     validUntil: 'Aug 14, 2026',
     partnerName: null,
+    applyHost: 'onrampfunds.com',
     ...overrides,
   });
 
@@ -55,6 +56,7 @@ describe('resolveCopy', () => {
               expired,
               validUntil,
               partnerName: null,
+              applyHost: 'onrampfunds.com',
             });
             expect(copy.disclosure.trim().length, `${lexicon}/${expired}/${validUntil}`)
               .toBeGreaterThan(20);
@@ -127,6 +129,17 @@ describe('resolveCopy', () => {
     it('switches the action label in the expired state', () => {
       expect(input().ctaLabel).toBe('See your offer');
       expect(input({ expired: true }).ctaLabel).toBe('Check current amount on Onramp');
+    });
+
+    it('names the destination it was actually given, never one it assumed', () => {
+      // The card carries Onramp's attribution row. It must not be able to claim a merchant is
+      // going to onrampfunds.com while the link points somewhere else.
+      expect(input({ applyHost: 'apply.onrampfunds.com' }).departure).toBe(
+        "Takes you to apply.onrampfunds.com — you'll leave this site.",
+      );
+      expect(input({ applyHost: 'somewhere-else.example' }).departure).toBe(
+        "Takes you to somewhere-else.example — you'll leave this site.",
+      );
     });
   });
 });

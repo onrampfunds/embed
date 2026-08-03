@@ -53,7 +53,7 @@ card?.unmount(); // remove the card and every listener it installed
 | `amount` | `number \| null` | Major currency units — `40000` renders as `$40,000`. `null`, omitted, or `0` renders nothing. |
 | `currency` | `string` | ISO 4217. Defaults to `USD`. |
 | `validUntil` | `string` | ISO 8601. Once passed, the card renders its expired state. |
-| `applyUrl` | `string` | Required whenever there is an amount. Must be absolute `https:`. |
+| `applyUrl` | `string` | Required whenever there is an amount. Must be absolute `https:`. Pass the one from the prequalification response unchanged. |
 | `lexicon` | `'loan' \| 'mca'` | Defaults to `loan`. Comes from the prequalification response. |
 | `partnerName` | `string` | Renders as "for {name}", and names the site being left. |
 | `locale` | `string` | BCP 47. Defaults to the browser's. |
@@ -71,6 +71,22 @@ card?.unmount(); // remove the card and every listener it installed
 | `mounting` | Static blocks at roughly the final height. No spinner, no motion. |
 | none | Nothing. `mount` returns `null` and yields the slot. Never reads as a rejection. |
 | malformed | Nothing, and the reason is logged to the console. Never a broken card in production. |
+
+### The action
+
+A full-page navigation to `applyUrl` in the same tab — not a popup and not a new tab, because the
+merchant is deliberately leaving your product and that should be honest rather than disguised. The
+library never constructs the URL.
+
+Two things follow from that:
+
+- **The departure notice names the host of `applyUrl`**, rather than asserting a destination. A
+  card carrying Onramp's attribution row must not be able to say "Takes you to onrampfunds.com"
+  while the link points elsewhere. If the host is not an Onramp one the card still renders and
+  still tells the truth, and the mismatch is logged so you find out.
+- **No referrer is sent.** Your dashboard URL routinely carries merchant identifiers, and nothing
+  on our side needs it — the apply URL identifies the referral and attribution runs off a
+  first-party cookie set after landing.
 
 ## Copy
 
