@@ -15,30 +15,34 @@ concurrency:
 
 jobs:
   verify:
-    name: Typecheck, build, test, guards
+    name: Build, typecheck, test, guards
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
       - run: npm ci
 
-      # Typecheck, build, unit tests, then every promise the README makes:
-      # lockstep versions, zero runtime dependencies, the 40KB budget, no network
-      # or storage API in the bundle, and the licence in both tarballs.
+      # Build first: the React wrapper typechecks against the core's emitted
+      # declarations, so on a clean checkout there is nothing to resolve until
+      # the core has been built.
+      #
+      # Then typecheck, unit tests, and every promise the README makes: lockstep
+      # versions, zero runtime dependencies, the 40KB budget, no network or
+      # storage API in the bundle, and the licence in both tarballs.
       - run: npm run verify
 
   browser:
     name: Browser tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -54,7 +58,7 @@ jobs:
       # be asserted honestly in jsdom.
       - run: npm run test:e2e
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
           name: playwright-report

@@ -29,7 +29,7 @@
     "check:network": "node scripts/check-no-network.mjs",
     "check:pack": "node scripts/check-tarballs.mjs",
     "check:versions": "node scripts/check-lockstep-versions.mjs",
-    "verify": "npm run typecheck && npm run build && npm test && npm run check:versions && npm run check:deps && npm run check:size && npm run check:network && npm run check:pack"
+    "verify": "npm run build && npm run typecheck && npm test && npm run check:versions && npm run check:deps && npm run check:size && npm run check:network && npm run check:pack"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1",
