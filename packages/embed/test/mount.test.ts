@@ -231,6 +231,19 @@ describe('mount', () => {
       expect(mount(detached, validConfig())).not.toBeNull();
       expect(detached.children).toHaveLength(1);
     });
+
+    it('refuses an element belonging to another document', () => {
+      // `instanceof Element` only proves the same JS realm. Everything the card builds comes from
+      // this document, so appendChild would silently adopt our host into an inert one where it
+      // renders nothing — a no-op that looks like success.
+      const other = document.implementation.createHTMLDocument('other');
+      const foreign = other.createElement('div');
+
+      const console = silenceConsole();
+      expect(mount(foreign, validConfig())).toBeNull();
+      expect(foreign.children).toHaveLength(0);
+      expect(console.errors.join(' ')).toContain('did not match an element');
+    });
   });
 
   describe('the mounting state', () => {

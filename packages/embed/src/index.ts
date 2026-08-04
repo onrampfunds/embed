@@ -31,10 +31,13 @@ function fail(message: string): void {
  *
  * Duck-typing on `nodeType === 1` would accept a plain `{ nodeType: 1 }`, which then throws deep
  * inside the render when we call `querySelectorAll` on it — turning a bad argument into an
- * exception in the partner's page instead of the logged no-op this library promises. An element
- * from another realm is refused for the same reason: we build nodes with *this* document, so we
- * could not safely mount into it anyway, and the caller gets the ordinary "did not match an
- * element" message.
+ * exception in the partner's page instead of the logged no-op this library promises.
+ *
+ * The `ownerDocument` check matters for the same reason. `instanceof Element` only proves the same
+ * JS realm, not the same document, so an element from `document.implementation.createHTMLDocument()`
+ * would pass it — and everything we build afterwards comes from *this* document. `appendChild`
+ * would silently adopt our host into an inert document, where it renders nothing and no style
+ * applies. Refusing gives the caller the ordinary "did not match an element" message instead.
  */
 function resolveTarget(target: unknown): Element | null {
   if (typeof target === 'string') {
@@ -47,7 +50,8 @@ function resolveTarget(target: unknown): Element | null {
       return null;
     }
   }
-  return target instanceof Element ? target : null;
+  if (!(target instanceof Element)) return null;
+  return target.ownerDocument === document ? target : null;
 }
 
 /** A partner's analytics handler is not allowed to take the card down with it. */
