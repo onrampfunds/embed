@@ -1,5 +1,5 @@
 /** Kept in sync with package.json by `scripts/check-lockstep-versions.mjs`. */
-export const VERSION = '0.0.3';
+export const VERSION = '0.0.4';
 
 /** Prefix for every console message, so a partner can tell whose warning it is. */
 export const LOG_PREFIX = '[onramp-embed]';

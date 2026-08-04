@@ -51,7 +51,7 @@ afterwards, and never publish by hand again.
 
 ```sh
 # 1. Set the version everywhere at once. Both packages and the repo move together.
-npm version 0.0.3 --workspaces --include-workspace-root --no-git-tag-version
+npm version 0.0.4 --workspaces --include-workspace-root --no-git-tag-version
 
 # 2. Update the wrapper's pin on the core and the exported constant.
 #    check:versions will tell you if you miss one.
@@ -62,8 +62,8 @@ npm version 0.0.3 --workspaces --include-workspace-root --no-git-tag-version
 npm run verify
 
 # 4. Tag and push. The tag drives the release.
-git commit -am "Release 0.0.3"
-git tag v0.0.3
+git commit -am "Release 0.0.4"
+git tag v0.0.4
 git push origin main --tags
 ```
 
@@ -80,6 +80,7 @@ packs and verifies without publishing.
 | `0.0.1` | Published **by hand**, to create the two names so trusted publishing could be configured against them. No provenance attestation — provenance requires a supported CI with an OIDC token, and a publish from a laptop cannot produce one. |
 | `0.0.2` | The first release through the workflow. Both packages carry SLSA provenance and npm's *"Built and signed on GitHub Actions"* badge, which is the confirmation trusted publishing works end to end. `@onrampfunds/embed-react` at this version is still the name-locking stub. |
 | `0.0.3` | The React wrapper proper (CTO-344). |
+| `0.0.4` | First release to publish the CDN bundle (CTO-406). The `embed/releases/` and `embed/v0/` paths begin here; earlier versions exist on npm only. |
 
 ## The CDN build
 
