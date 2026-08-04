@@ -17,6 +17,7 @@ jobs:
   verify:
     name: Build, typecheck, test, guards
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
 
@@ -39,6 +40,9 @@ jobs:
   browser:
     name: Browser tests
     runs-on: ubuntu-latest
+    # The suite runs in three seconds and the whole job in under a minute. Anything approaching
+    # ten minutes is wedged, and should say so rather than sit there.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
 
@@ -51,7 +55,36 @@ jobs:
 
       - run: npm run build
 
-      - run: npx playwright install --with-deps chromium
+      # The browser suite runs in about three seconds. Downloading Chromium to run it took
+      # between 50 and 450, which is the entire cost of this job.
+      #
+      # Keyed on the Playwright version rather than the lockfile hash: the browser build is tied
+      # to Playwright itself, so any other dependency changing should not evict a 130MB download,
+      # and upgrading Playwright must.
+      - name: Resolve the Playwright version
+        id: playwright
+        run: |
+          version="$(node -p "require('@playwright/test/package.json').version")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Playwright ${version}"
+
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Deliberately not `--with-deps`. That flag shells out to apt, which took 21 seconds on one
+      # run and hung past nine minutes on another with no output — an intermittent lock or prompt,
+      # and the reason this job looked stuck rather than slow.
+      #
+      # GitHub's ubuntu runner image already ships the shared libraries Chromium links against, so
+      # apt buys nothing here. If a library ever is genuinely missing, Playwright fails at launch
+      # naming it, which is a visible and actionable failure — unlike a silent hang that burns the
+      # six-hour default timeout.
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
 
       # Style isolation across the shadow boundary, container queries, keyboard
       # operability, and a request count of zero during a mount. None of these can
