@@ -193,6 +193,18 @@ describe('mount', () => {
       expect(console.errors.join(' ')).toContain('did not match an element');
     });
 
+    it.each(['#capital[', '::', '>>>', ''])(
+      'survives the unparseable selector %j',
+      (selector) => {
+        // querySelector throws a DOMException rather than returning null for these, and letting
+        // it escape would be an exception in the partner's page where a no-op was documented.
+        const console = silenceConsole();
+        expect(() => mount(selector, validConfig())).not.toThrow();
+        expect(mount(selector, validConfig())).toBeNull();
+        expect(console.errors.join(' ')).toContain('did not match an element');
+      },
+    );
+
     it('survives a config that is not an object', () => {
       silenceConsole();
       expect(mount('#capital', null as never)).toBeNull();

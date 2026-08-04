@@ -37,7 +37,16 @@ function fail(message: string): void {
  * element" message.
  */
 function resolveTarget(target: unknown): Element | null {
-  if (typeof target === 'string') return document.querySelector(target);
+  if (typeof target === 'string') {
+    try {
+      return document.querySelector(target);
+    } catch {
+      // `querySelector` throws a DOMException on an unparseable selector rather than returning
+      // null. Letting that escape would be the same broken promise as accepting a bad element:
+      // an exception in the partner's page where a logged no-op was documented.
+      return null;
+    }
+  }
   return target instanceof Element ? target : null;
 }
 

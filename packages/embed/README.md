@@ -75,8 +75,8 @@ the mount returned.
 | `prequalified` | The full card. The only state that shows a figure. |
 | `expired` | The amount and mechanism line are **removed from the DOM, not dimmed** — a stale figure is a compliance problem. The action still works, because the current number exists on Onramp. |
 | `mounting` | Static blocks at roughly the final height. No spinner, no motion. |
-| none | Nothing. `mount` returns `null` and yields the slot. Never reads as a rejection. |
-| malformed | Nothing, and the reason is logged to the console. Never a broken card in production. |
+| `none` | Nothing. `mount` returns `null` and yields the slot. Never reads as a rejection. |
+| `invalid` | The config was malformed. Nothing renders and the reason is logged. Never a broken card in production. |
 
 ### The action
 
