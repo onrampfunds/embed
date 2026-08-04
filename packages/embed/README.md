@@ -110,9 +110,26 @@ Pass the `copy` block from the response straight through:
 | `disclosure` | The disclosure footer. |
 | `expiredDisclosure` | The disclosure footer for the expired state. |
 
-**Every one has a baked fallback, and the library fails closed.** A string that is missing, `null`,
-empty, whitespace, or the wrong type renders the fallback. A card never renders without a
-disclosure.
+**They are required, and the library fails closed by refusing.** A string that is missing, `null`,
+empty, whitespace, or the wrong type makes the whole config invalid: nothing renders and the
+reason is logged. A card never reaches a merchant without its disclosure.
+
+There are deliberately **no baked fallbacks**. A fallback would be compiled-in regulated copy —
+exactly what serving the strings exists to avoid, since it is frozen at publish time and cannot be
+revised without a release every partner has to take. It would also turn a missing field into a
+silent substitution, so a server bug or a payload mangled in transit would render a plausible card
+instead of failing where you would notice, which is worst during integration.
+
+Which strings a card needs depends on what it renders:
+
+| Card | Requires |
+| --- | --- |
+| Prequalified | `qualifier`, `mechanism`, `disclosure` |
+| Expired | `expiredDisclosure` only — it shows neither a figure nor a mechanism line |
+| Mounting, or no amount | none |
+
+Served strings are rendered **verbatim**. The library appends nothing to them, so what compliance
+signs off is what a merchant sees.
 
 Everything else — the button label, the attribution row, the departure notice — is UI chrome that
 carries no regulatory weight, so it ships in the package.

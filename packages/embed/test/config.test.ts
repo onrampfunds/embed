@@ -3,11 +3,19 @@ import { normalize } from '../src/config';
 
 const NOW = new Date('2026-08-03T00:00:00Z');
 
+const COPY = {
+  qualifier: 'Pre-qualified, not approved.',
+  mechanism: 'Repaid as a share of your daily sales.',
+  disclosure: 'Not an offer of credit. Subject to review prior to approval.',
+  expiredDisclosure: 'Not an offer of credit. This estimate has expired.',
+};
+
 const base = {
   amount: 40000,
   currency: 'USD',
   applyUrl: 'https://onrampfunds.com/p/abc123',
   lexicon: 'loan' as const,
+  copy: COPY,
 };
 
 const ok = (raw: unknown) => {
@@ -30,7 +38,9 @@ describe('normalize', () => {
       validUntil: '2026-08-06T07:00:00Z',
       applyUrl: 'https://onrampfunds.com/p/abc123',
       lexicon: 'loan',
-      copy: {},
+      // The ticket's snippet writes this as `copy: { /* served strings */ }`. The strings are
+      // required, so the snippet works with them supplied — which is what a partner forwards.
+      copy: COPY,
       theme: { accent: '#5B21B6', radius: 8, font: 'system' },
       onEvent: () => undefined,
     });
@@ -216,6 +226,58 @@ describe('normalize', () => {
         expect(rejected({ ...base, applyUrl: 'http://localhost.evil.com/p/a' })).toContain('applyUrl');
         expect(rejected({ ...base, applyUrl: 'http://127.0.0.1.evil.com/p/a' })).toContain('applyUrl');
       });
+    });
+  });
+
+  describe('the regulated copy is required, not defaulted', () => {
+    it.each(['qualifier', 'mechanism', 'disclosure'])(
+      'refuses a prequalified card missing copy.%s',
+      (key) => {
+        const copy = { ...COPY, [key]: undefined };
+        expect(rejected({ ...base, copy })).toContain(`copy.${key}`);
+      },
+    );
+
+    it.each([
+      ['empty', ''],
+      ['whitespace', '   '],
+      ['null', null],
+      ['the wrong type', 42],
+    ])('refuses a disclosure that is %s', (_label, value) => {
+      expect(rejected({ ...base, copy: { ...COPY, disclosure: value } })).toContain('copy.disclosure');
+    });
+
+    it('refuses a card with no copy block at all', () => {
+      const { copy: _dropped, ...withoutCopy } = base;
+      expect(rejected(withoutCopy)).toContain('copy.');
+    });
+
+    it('names every missing string at once, not just the first', () => {
+      const reason = rejected({ ...base, copy: { expiredDisclosure: COPY.expiredDisclosure } });
+      for (const key of ['qualifier', 'mechanism', 'disclosure']) {
+        expect(reason).toContain(`copy.${key}`);
+      }
+    });
+
+    it('requires only the expired disclosure for an expired card', () => {
+      // The expired card shows neither a figure nor a mechanism line, so requiring the strings it
+      // does not render would reject payloads that are perfectly correct.
+      const config = ok({
+        ...base,
+        validUntil: '2026-08-01T00:00:00Z',
+        copy: { expiredDisclosure: COPY.expiredDisclosure },
+      });
+      expect(config.state).toBe('expired');
+    });
+
+    it('refuses an expired card missing its expired disclosure', () => {
+      const reason = rejected({ ...base, validUntil: '2026-08-01T00:00:00Z', copy: { ...COPY, expiredDisclosure: '' } });
+      expect(reason).toContain('copy.expiredDisclosure');
+    });
+
+    it('requires no copy for the states that render none', () => {
+      expect(ok({ state: 'mounting' }).state).toBe('mounting');
+      expect(ok({ amount: null }).state).toBe('none');
     });
   });
 

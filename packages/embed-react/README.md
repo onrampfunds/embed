@@ -32,7 +32,7 @@ above.
 ## What the wrapper actually does
 
 It is a ref and an effect. The core owns everything that carries weight — the closed shadow root,
-the state machine, the contrast guard, the regulated copy and its fallbacks — and none of that is
+the state machine, the contrast guard, the regulated copy contract — and none of that is
 reimplemented here. What this package handles is reconciling an imperative mount against React's
 lifecycle, which has two failure modes worth naming.
 

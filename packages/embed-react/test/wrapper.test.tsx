@@ -76,9 +76,26 @@ describe('OnrampPrequalification', () => {
 
     it('does not remount when only the key order differs', () => {
       // Object spread and conditional keys make ordering genuinely unstable in real integrations.
+      const { amount, currency, applyUrl, copy, lexicon } = validConfig();
       harness = mountHarness();
-      harness.render(<OnrampPrequalification amount={40000} currency="USD" applyUrl="https://onrampfunds.com/p/a" />);
-      harness.render(<OnrampPrequalification applyUrl="https://onrampfunds.com/p/a" currency="USD" amount={40000} />);
+      harness.render(
+        <OnrampPrequalification
+          amount={amount}
+          currency={currency}
+          applyUrl={applyUrl}
+          lexicon={lexicon}
+          copy={copy}
+        />,
+      );
+      harness.render(
+        <OnrampPrequalification
+          copy={copy}
+          applyUrl={applyUrl}
+          lexicon={lexicon}
+          currency={currency}
+          amount={amount}
+        />,
+      );
       expect(shadow.roots).toHaveLength(1);
     });
 

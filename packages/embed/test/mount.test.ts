@@ -159,8 +159,10 @@ describe('mount', () => {
       expect(root().querySelectorAll(FOCUSABLE)).toHaveLength(1);
     });
 
-    it('carries an expiry-specific disclosure', () => {
-      expect(textOf('.disclosure')).toContain('no amount is shown');
+    it('carries the served expiry-specific disclosure, not the live one', () => {
+      const copy = validConfig().copy;
+      expect(textOf('.disclosure')).toBe(copy?.expiredDisclosure);
+      expect(textOf('.disclosure')).not.toBe(copy?.disclosure);
     });
   });
 
@@ -279,14 +281,33 @@ describe('mount', () => {
       expect(textOf('.amount__band')).toBe('Revised qualifier.');
     });
 
-    it('renders the baked fallback when a served string is missing', () => {
-      mount('#capital', validConfig({ copy: { disclosure: '', mechanism: undefined } }));
-      expect(textOf('.disclosure')).toContain('subject to review prior to approval');
-      expect(textOf('.mechanism__text').length).toBeGreaterThan(0);
+    it('renders nothing when a regulated string is missing, rather than substituting one', () => {
+      // There is no baked fallback to reach for. Compiled-in regulated copy is unrevisable
+      // without a release every partner has to take, and substituting it silently would hide a
+      // server bug behind a card that looks fine.
+      const console = silenceConsole();
+      const handle = mount('#capital', validConfig({ copy: { disclosure: '' } }));
+
+      expect(handle).toBeNull();
+      expect(container.children).toHaveLength(0);
+      expect(console.errors.join(' ')).toContain('copy.disclosure');
+    });
+
+    it('never renders a card carrying an amount but no disclosure', () => {
+      // The property the fallbacks existed to protect, now held by refusing instead.
+      const console = silenceConsole();
+      for (const missing of ['qualifier', 'mechanism', 'disclosure']) {
+        document.body.replaceChildren();
+        container = makeContainer();
+        mount('#capital', validConfig({ copy: { ...validConfig().copy, [missing]: undefined } }));
+        expect(container.textContent, `missing ${missing}`).toBe('');
+      }
+      expect(console.errors.join(' ')).toContain('copy.');
     });
 
     it('escapes rather than parses copy, so served strings cannot inject markup', () => {
-      mount('#capital', validConfig({ copy: { disclosure: '<img src=x onerror=alert(1)>' } }));
+      const copy = { ...validConfig().copy, disclosure: '<img src=x onerror=alert(1)>' };
+      mount('#capital', validConfig({ copy }));
       expect(root().querySelector('.disclosure img')).toBeNull();
       expect(textOf('.disclosure')).toBe('<img src=x onerror=alert(1)>');
     });

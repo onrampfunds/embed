@@ -99,7 +99,9 @@ Full API, token reference, and copy contract: [`packages/embed/README.md`](packa
   [the note in the package README](packages/embed/README.md#isolation).
 - **WCAG AA inside the shadow root.** Partner tokens that fail contrast are corrected at mount and
   the reason is logged.
-- **It never renders a card without a disclosure.** Every served string has a baked fallback.
+- **It never renders a card without a disclosure.** The regulated strings are required; a response
+  missing one is refused and nothing renders, rather than substituting compiled-in copy that
+  compliance could not revise.
 
 ## Repository layout
 
