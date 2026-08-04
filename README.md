@@ -26,7 +26,7 @@ integrity hash** — the hash for each release is in its GitHub release notes:
 
 ```html
 <script
-  src="https://js.onrampfunds.com/embed/releases/0.0.3/onramp-embed.umd.js"
+  src="https://js.onrampfunds.com/embed/releases/0.0.4/onramp-embed.umd.js"
   integrity="sha384-<published with each release>"
   crossorigin="anonymous"
 ></script>
