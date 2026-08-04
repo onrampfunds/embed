@@ -197,6 +197,28 @@ describe('mount', () => {
       silenceConsole();
       expect(mount('#capital', null as never)).toBeNull();
     });
+
+    it.each([
+      ['a plain object wearing nodeType', { nodeType: 1 }],
+      ['a text node', document.createTextNode('not an element')],
+      ['a document fragment', document.createDocumentFragment()],
+      ['null', null],
+      ['a number', 42],
+    ])('refuses %s as a mount target without throwing', (_label, target) => {
+      // Duck-typing on nodeType used to let the first of these through, and it then threw deep
+      // inside the render — an exception in the partner's page instead of a logged no-op.
+      const console = silenceConsole();
+      expect(() => mount(target as never, validConfig())).not.toThrow();
+      expect(mount(target as never, validConfig())).toBeNull();
+      expect(console.errors.join(' ')).toContain('did not match an element');
+    });
+
+    it('accepts a real element that is not in the document yet', () => {
+      // Mount first, attach later is a legitimate partner pattern.
+      const detached = document.createElement('div');
+      expect(mount(detached, validConfig())).not.toBeNull();
+      expect(detached.children).toHaveLength(1);
+    });
   });
 
   describe('the mounting state', () => {

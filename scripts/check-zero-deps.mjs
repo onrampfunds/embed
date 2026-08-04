@@ -21,9 +21,14 @@ report.check(
   coreDeps.length === 0,
   coreDeps.length === 0 ? undefined : coreDeps.join(', '),
 );
+// `bundleDependencies` is npm's canonical spelling; `bundledDependencies` is the alias. Checking
+// only the alias would let the canonical form through, which is the one anyone would actually
+// reach for.
 report.check(
   `${core.name} has no optional or bundled dependencies`,
-  core.optionalDependencies === undefined && core.bundledDependencies === undefined,
+  core.optionalDependencies === undefined &&
+    core.bundleDependencies === undefined &&
+    core.bundledDependencies === undefined,
 );
 
 const reactDeps = Object.entries(react.dependencies ?? {});
