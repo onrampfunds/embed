@@ -51,7 +51,35 @@ jobs:
 
       - run: npm run build
 
-      - run: npx playwright install --with-deps chromium
+      # The browser suite runs in about three seconds. Downloading Chromium to run it took
+      # between 50 and 450, which is the entire cost of this job.
+      #
+      # Keyed on the Playwright version rather than the lockfile hash: the browser build is tied
+      # to Playwright itself, so any other dependency changing should not evict a 130MB download,
+      # and upgrading Playwright must.
+      - name: Resolve the Playwright version
+        id: playwright
+        run: |
+          version="$(node -p "require('@playwright/test/package.json').version")"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Playwright ${version}"
+
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # The cache holds the browser, not the system libraries it links against, and those live
+      # outside the cached path. Cheap to reassert, and the failure it prevents — a browser that
+      # will not launch — reads as a test failure rather than a missing package.
+      - name: Install Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       # Style isolation across the shadow boundary, container queries, keyboard
       # operability, and a request count of zero during a mount. None of these can
