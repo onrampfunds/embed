@@ -39,6 +39,20 @@ function fail(message: string): void {
  * would silently adopt our host into an inert document, where it renders nothing and no style
  * applies. Refusing gives the caller the ordinary "did not match an element" message instead.
  */
+/** A useful label for the log. `String(anElement)` gives "[object HTMLDivElement]", which is not. */
+function describeTarget(target: unknown): string {
+  if (typeof target === 'string') return JSON.stringify(target);
+  if (target === null) return 'null';
+  if (target instanceof Element) {
+    const tag = target.tagName.toLowerCase();
+    return target.ownerDocument === document
+      ? `<${tag}>`
+      : `<${tag}> from a different document`;
+  }
+  if (target instanceof Node) return `a ${target.nodeName.toLowerCase()} node`;
+  return `a value of type ${typeof target}`;
+}
+
 function resolveTarget(target: unknown): Element | null {
   if (typeof target === 'string') {
     try {
@@ -93,10 +107,7 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
 
   const container = resolveTarget(target);
   if (container === null) {
-    fail(
-      `mount target ${JSON.stringify(String(target))} did not match an element. ` +
-        'Nothing was rendered.',
-    );
+    fail(`mount target ${describeTarget(target)} did not match an element. Nothing was rendered.`);
     return null;
   }
 

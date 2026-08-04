@@ -185,7 +185,20 @@ export const BASE_CSS = `
   text-align: center;
   text-decoration: none;
 }
-.cta:hover { opacity: 0.9; }
+/* Hover deliberately does not touch the fill or the label.
+   The design handoff specifies an opacity change, but opacity composites the whole element —
+   label included — against the card, so it lowers the very ratio the contrast guard just
+   certified. Measured: an accent that passes at 4.50:1 falls to 3.71:1 on hover, and AA applies
+   to every state. The affordance is carried by the border and a ring instead, both non-text
+   boundaries, so the label pairing is identical hovered and not. */
+.cta:hover {
+  border-color: ${mix(accent, 60, '#000')};
+  box-shadow: 0 0 0 3px ${mix(accent, 24, surface)};
+}
+.card--safe .cta:hover {
+  border-color: ${text};
+  box-shadow: 0 0 0 3px ${mix(text, 24, surface)};
+}
 .cta:focus-visible {
   outline: 2px solid ${text};
   outline-offset: 2px;

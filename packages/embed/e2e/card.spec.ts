@@ -174,6 +174,27 @@ test.describe('content security policy', () => {
   });
 });
 
+test.describe('the hover state', () => {
+  test('does not change the action label pairing', async ({ page }) => {
+    await loadPartnerPage(page);
+    await mountCard(page, CONFIG);
+
+    const resting = await styleOf(page, '.cta', ['background-color', 'color']);
+    await page.evaluate(() => {
+      (window.__roots[0]?.querySelector('.cta') as HTMLElement | null)?.focus();
+    });
+    await page.locator('#capital').hover();
+    const hovered = await styleOf(page, '.cta', ['background-color', 'color', 'opacity']);
+
+    // WCAG applies to every state. An `opacity` change would composite the label against the
+    // card and quietly lower the ratio the contrast guard just certified — measured at 4.50:1
+    // resting falling to 3.71:1 hovered. The affordance lives on the border and ring instead.
+    expect(hovered?.['background-color']).toBe(resting?.['background-color']);
+    expect(hovered?.['color']).toBe(resting?.['color']);
+    expect(hovered?.['opacity']).toBe('1');
+  });
+});
+
 test.describe('safe mode', () => {
   // A token set whose body pairing cannot be rescued, so the guard falls all the way through.
   const FAILING = { ...CONFIG, theme: { accent: '#f2e205', text: '#9aa0a6' } };

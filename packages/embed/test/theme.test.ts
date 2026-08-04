@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CONTRAST, DEFAULT_TOKENS } from '../src/constants';
 import { resolveTheme } from '../src/theme';
-import { tokenRule } from '../src/styles';
+import { BASE_CSS, tokenRule } from '../src/styles';
 
 describe('resolveTheme', () => {
   it('uses the Onramp defaults when the partner passes nothing', () => {
@@ -132,6 +132,40 @@ describe('resolveTheme', () => {
       const theme = resolveTheme(undefined);
       expect(theme.ratios['disclosure']).toBeGreaterThanOrEqual(CONTRAST.body);
     });
+  });
+});
+
+describe('BASE_CSS', () => {
+  it('carries every rule the card depends on', () => {
+    // The stylesheet is a template literal, so a stray backtick in a comment closes it early.
+    // That usually fails the build — but if what follows happens to parse, it truncates the CSS
+    // silently instead, and the card renders unstyled. This is the cheap guard against that.
+    const required = [
+      ':host',
+      '.card',
+      '.attribution',
+      '.amount__figure',
+      '.amount__band',
+      '.mechanism__text',
+      '.cta',
+      '.cta:hover',
+      '.cta:focus-visible',
+      '.card--safe .cta',
+      '.departure',
+      '.disclosure',
+      '.skeleton__block--action',
+      '.sr-only',
+    ];
+    for (const selector of required) {
+      expect(BASE_CSS, `missing ${selector}`).toContain(selector);
+    }
+    expect(BASE_CSS).not.toContain('`');
+  });
+
+  it('closes every rule it opens', () => {
+    const opens = (BASE_CSS.match(/\{/g) ?? []).length;
+    const closes = (BASE_CSS.match(/\}/g) ?? []).length;
+    expect(opens).toBe(closes);
   });
 });
 
