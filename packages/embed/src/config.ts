@@ -72,6 +72,14 @@ function normalizeApplyUrl(value: unknown): URL | null {
   } catch {
     return null;
   }
+
+  // Credentials in the URL are refused outright. `https://onrampfunds.com@evil.example/p/a` is a
+  // real host of `evil.example` wearing our name as userinfo — the departure notice would still
+  // name the true host, but the link would carry a brand-shaped disguise into the merchant's
+  // address bar, and any credentials there leak into history and logs. There is no legitimate
+  // reason for an apply URL to have them.
+  if (url.username !== '' || url.password !== '') return null;
+
   if (url.protocol === 'https:') return url;
   if (url.protocol === 'http:' && isLoopback(url.hostname)) return url;
   return null;

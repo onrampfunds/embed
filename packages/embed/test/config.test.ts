@@ -145,6 +145,18 @@ describe('normalize', () => {
         }
       });
 
+      it('refuses credentials in the URL', () => {
+        // `https://onrampfunds.com@evil.example/p/a` has a real host of evil.example and wears
+        // our name as userinfo. The departure notice would name the true host, but the link
+        // would still carry a brand-shaped disguise into the address bar.
+        expect(rejected({ ...base, applyUrl: 'https://onrampfunds.com@evil.example/p/a' }))
+          .toContain('applyUrl');
+        expect(rejected({ ...base, applyUrl: 'https://user:pass@onrampfunds.com/p/a' }))
+          .toContain('applyUrl');
+        expect(rejected({ ...base, applyUrl: 'https://user@onrampfunds.com/p/a' }))
+          .toContain('applyUrl');
+      });
+
       it('does not mistake a hostname that merely contains a loopback name', () => {
         expect(rejected({ ...base, applyUrl: 'http://localhost.evil.com/p/a' })).toContain('applyUrl');
         expect(rejected({ ...base, applyUrl: 'http://127.0.0.1.evil.com/p/a' })).toContain('applyUrl');
