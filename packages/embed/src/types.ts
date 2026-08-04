@@ -41,8 +41,16 @@ export interface ThemeTokens {
 
 /**
  * The regulated strings, served in the prequalification response rather than compiled in — so
- * compliance can revise them without a package release. Every one has a baked fallback; a missing
- * or empty string renders the fallback rather than nothing.
+ * compliance can revise them without a package release.
+ *
+ * They are **required**, not optional, and there are no baked fallbacks. A response missing one is
+ * refused and the card renders nothing, which is safer than substituting compiled-in copy that
+ * cannot be revised. Which strings a given card needs depends on what it renders: a prequalified
+ * card needs `qualifier`, `mechanism` and `disclosure`; an expired one needs only
+ * `expiredDisclosure`, since it shows neither a figure nor a mechanism line.
+ *
+ * Typed optional because the requirement varies by state, and because `mounting` and the
+ * no-amount case render no regulated copy at all.
  */
 export interface ServedCopy {
   /** The "pre-qualified, not approved" band. Load-bearing, not decoration. */

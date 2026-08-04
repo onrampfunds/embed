@@ -1,56 +1,20 @@
-import type { Lexicon, ServedCopy } from './types';
+import { servedString } from './config';
+import type { ServedCopy } from './types';
 
 /**
- * Regulated strings are served in the prequalification response, not compiled in — a partner
- * pinned to an old version would otherwise show an old disclosure forever.
+ * Regulated strings are served in the prequalification response and are **required** — there are
+ * no baked fallbacks, deliberately.
  *
- * What lives here are the **fallbacks**, used only when a response omits a string. They are still
- * regulated copy and carry the same sign-off as the served versions (CTO-404). Everything else in
- * this file is UI chrome that carries no regulatory weight.
+ * A fallback is compiled-in regulated copy, which is exactly what serving the strings exists to
+ * avoid: frozen at publish time, rendering to merchants, and unrevisable without a release that
+ * every partner then has to take. It also converts a missing field into a silent substitution, so
+ * a server bug or a payload mangled in transit renders a plausible card instead of failing where
+ * someone would notice. A response missing a regulated string is refused in `config.ts`, and the
+ * card renders nothing.
+ *
+ * What lives here is UI chrome, which carries no regulatory weight and can safely ship in the
+ * package.
  */
-
-interface LexiconCopy {
-  qualifier: string;
-  mechanism: string;
-  /** Written without the validity sentence; it is appended only when we have a date. */
-  disclosure: string;
-  expiredDisclosure: string;
-}
-
-const FALLBACKS: Record<Lexicon, LexiconCopy> = {
-  loan: {
-    qualifier:
-      'Pre-qualified, not approved. Onramp confirms the amount after reviewing your bank data — ' +
-      'it can go up or down.',
-    mechanism:
-      'Repaid automatically as a share of your daily sales. The fee, the rate, and the expected ' +
-      'length are set after review and shown in full before you accept anything.',
-    disclosure:
-      'Pre-qualification from Onramp Funds is not an offer of credit. All applications are ' +
-      'subject to review prior to approval; the amount is derived from sales history alone and ' +
-      'may change once bank data is reviewed.',
-    expiredDisclosure:
-      'Pre-qualification from Onramp Funds is not an offer of credit. This estimate has expired ' +
-      'and no amount is shown.',
-  },
-  mca: {
-    // No "repayment", no "term", no "due", no "credit", and the advance is never framed as a debt.
-    qualifier:
-      'Pre-qualified, not approved. Onramp confirms the amount after reviewing your bank data — ' +
-      'it can go up or down.',
-    mechanism:
-      'Payments come automatically from a share of your daily sales. The cost and the sales ' +
-      'share are set after review and shown in full before you accept anything.',
-    disclosure:
-      'Pre-qualification from Onramp Funds is not an offer of financing. A cash advance is a ' +
-      'purchase of future receivables, not a loan. All applications are subject to review prior ' +
-      'to approval; the amount is derived from sales history alone and may change.',
-    expiredDisclosure:
-      'Pre-qualification from Onramp Funds is not an offer of financing. A cash advance is a ' +
-      'purchase of future receivables, not a loan. This estimate has expired and no amount is ' +
-      'shown.',
-  },
-};
 
 /** UI chrome. No regulatory weight, so it ships in the package and is not served. */
 export const CHROME = {
@@ -64,16 +28,6 @@ export const CHROME = {
   defaultApplyHost: 'onrampfunds.com',
 } as const;
 
-/**
- * A served string is used only if it is a non-empty string. Anything else — missing, null, empty,
- * whitespace, the wrong type — falls back. A card must never render without its disclosure.
- */
-function served(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 export interface ResolvedCopy {
   qualifier: string;
   mechanism: string;
@@ -85,12 +39,9 @@ export interface ResolvedCopy {
   ctaLabel: string;
   loadingLabel: string;
   departure: string;
-  /** Which served strings were absent and fell back. Useful to partners debugging their payload. */
-  fellBack: string[];
 }
 
 export interface CopyInput {
-  lexicon: Lexicon;
   copy: ServedCopy | undefined;
   expired: boolean;
   /** Already formatted for the merchant's locale, or `null` when no expiry was supplied. */
@@ -106,42 +57,20 @@ export interface CopyInput {
 }
 
 export function resolveCopy(input: CopyInput): ResolvedCopy {
-  const bank = FALLBACKS[input.lexicon];
   const supplied = input.copy ?? {};
-  const fellBack: string[] = [];
 
-  const take = (key: keyof LexiconCopy, value: unknown): string => {
-    const provided = served(value);
-    if (provided !== null) return provided;
-    fellBack.push(key);
-    return bank[key];
-  };
-
-  const qualifier = take('qualifier', supplied.qualifier);
-  const mechanism = take('mechanism', supplied.mechanism);
-
-  let disclosure: string;
-  if (input.expired) {
-    disclosure = take('expiredDisclosure', supplied.expiredDisclosure);
-    if (served(supplied.expiredDisclosure) === null && input.validUntil !== null) {
-      disclosure = disclosure.replace(
-        'This estimate has expired',
-        `This estimate expired ${input.validUntil}`,
-      );
-    }
-  } else {
-    disclosure = take('disclosure', supplied.disclosure);
-    // The validity sentence belongs to the fallback only; a served disclosure arrives complete.
-    if (served(supplied.disclosure) === null && input.validUntil !== null) {
-      disclosure = `${disclosure} Valid until ${input.validUntil}.`;
-    }
-  }
+  // Presence is guaranteed by `normalize`, which refuses the config otherwise. The empty-string
+  // defaults here are unreachable and exist only so this returns a total value rather than
+  // asserting non-null — a card is not a place to discover a broken invariant at runtime.
+  const disclosure = input.expired
+    ? (servedString(supplied.expiredDisclosure) ?? '')
+    : (servedString(supplied.disclosure) ?? '');
 
   const site = input.partnerName ?? 'this site';
 
   return {
-    qualifier,
-    mechanism,
+    qualifier: servedString(supplied.qualifier) ?? '',
+    mechanism: servedString(supplied.mechanism) ?? '',
     disclosure,
     expiredTitle: CHROME.expiredTitle,
     expiredReason:
@@ -154,6 +83,5 @@ export function resolveCopy(input: CopyInput): ResolvedCopy {
     ctaLabel: input.expired ? CHROME.expiredCtaLabel : CHROME.ctaLabel,
     loadingLabel: CHROME.loadingLabel,
     departure: `Takes you to ${input.applyHost ?? CHROME.defaultApplyHost} — you'll leave ${site}.`,
-    fellBack,
   };
 }

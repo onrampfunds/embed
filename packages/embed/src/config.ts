@@ -73,6 +73,24 @@ function cleanText(value: unknown, max: number): string | null {
   return stripped.length > max ? `${stripped.slice(0, max - 1).trimEnd()}…` : stripped;
 }
 
+/** A served string counts only if it is genuinely present — not empty, not whitespace. */
+export function servedString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+/**
+ * Which regulated strings each rendered state actually shows.
+ *
+ * The expired card carries no qualifier and no mechanism line — both are removed with the amount,
+ * because a stale rate is the same compliance problem as a stale figure — so requiring them there
+ * would reject payloads that are perfectly correct.
+ */
+function requiredCopy(expired: boolean): (keyof ServedCopy)[] {
+  return expired ? ['expiredDisclosure'] : ['qualifier', 'mechanism', 'disclosure'];
+}
+
 /** `URL.hostname` keeps the brackets on an IPv6 host, so `[::1]` is the value to compare. */
 function isLoopback(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
@@ -218,6 +236,30 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
   }
 
   const expired = validUntil !== null && validUntil.getTime() <= now.getTime();
+
+  // The regulated strings are required, not defaulted.
+  //
+  // The package used to carry a baked fallback for each one. That was the wrong shape: a fallback
+  // is compiled-in copy, which is precisely what serving the strings exists to avoid — frozen at
+  // publish time, rendering to merchants, unrevisable without a release every partner has to take.
+  // It also turned a missing field into a silent substitution, so a server bug or a payload
+  // mangled in transit looked like a working card, most damagingly during partner integration.
+  //
+  // Refusing renders nothing at all, which satisfies "a card must never reach a merchant without
+  // its disclosure" more completely than a fallback did — there is no amount either — and matches
+  // how `lexicon` is already handled.
+  const missing = requiredCopy(expired).filter(
+    (key) => servedString(copy?.[key]) === null,
+  );
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      reason:
+        `copy.${missing.join(', copy.')} ${missing.length === 1 ? 'is' : 'are'} required for the ` +
+        `${expired ? 'expired' : 'prequalified'} card and must be non-empty. ` +
+        'Pass the copy block from the prequalification response unchanged.',
+    };
+  }
 
   return {
     ok: true,

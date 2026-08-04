@@ -164,7 +164,6 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     }
 
     const copy = resolveCopy({
-      lexicon: config.lexicon,
       copy: config.copy,
       expired: config.state === 'expired',
       validUntil: validUntilLabel,
@@ -213,7 +212,6 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
         currency: config.currency,
         lexicon: config.lexicon,
         safeMode: theme.safeMode,
-        copyFellBack: copy.fellBack,
       });
     }
 

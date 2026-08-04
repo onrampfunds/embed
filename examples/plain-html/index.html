@@ -126,6 +126,24 @@
           lexicon: 'loan',
           partnerName: 'Cartwheel',
           locale: 'en-US',
+          // Regulated copy. In production this block comes from the prequalification response
+          // verbatim — the library requires it and renders nothing without it, rather than
+          // falling back to strings compliance could not revise.
+          copy: {
+            qualifier:
+              'Pre-qualified, not approved. Onramp confirms the amount after reviewing your ' +
+              'bank data — it can go up or down.',
+            mechanism:
+              'Repaid automatically as a share of your daily sales. The fee, the rate, and the ' +
+              'expected length are set after review and shown in full before you accept anything.',
+            disclosure:
+              'Pre-qualification from Onramp Funds is not an offer of credit. All applications ' +
+              'are subject to review prior to approval; the amount is derived from sales ' +
+              'history alone and may change once bank data is reviewed.',
+            expiredDisclosure:
+              'Pre-qualification from Onramp Funds is not an offer of credit. This estimate has ' +
+              'expired and no amount is shown.',
+          },
           theme: { accent: '#2b5ce6', accentText: '#ffffff', radius: 10, font: 'system' },
           onEvent: (name, meta) => {
             lines.unshift(`${name} ${JSON.stringify(meta)}`);
@@ -141,7 +159,21 @@
           case 'mounting':
             return { ...base, state: 'mounting' };
           case 'mca':
-            return { ...base, lexicon: 'mca' };
+            return {
+              ...base,
+              lexicon: 'mca',
+              copy: {
+                ...base.copy,
+                mechanism:
+                  'Payments come automatically from a share of your daily sales. The cost and ' +
+                  'the sales share are set after review and shown in full before you accept ' +
+                  'anything.',
+                disclosure:
+                  'Pre-qualification from Onramp Funds is not an offer of financing. A cash ' +
+                  'advance is a purchase of future receivables, not a loan. All applications ' +
+                  'are subject to review prior to approval.',
+              },
+            };
           case 'dark':
             return {
               ...base,
