@@ -174,6 +174,47 @@ test.describe('content security policy', () => {
   });
 });
 
+test.describe('safe mode', () => {
+  // A token set whose body pairing cannot be rescued, so the guard falls all the way through.
+  const FAILING = { ...CONFIG, theme: { accent: '#f2e205', text: '#9aa0a6' } };
+
+  test('reduces the accent to the top rule and nothing else', async ({ page }) => {
+    await loadPartnerPage(page);
+    await mountCard(page, FAILING);
+
+    const accent = 'rgb(242, 226, 5)';
+
+    // The one place it is allowed to survive.
+    const rule = await styleOf(page, '.rule', ['background-color']);
+    expect(rule?.['background-color']).toBe(accent);
+
+    // Everywhere it would otherwise appear must now be neutral — otherwise safe mode still
+    // presents the partner's brand on a card we just decided we cannot render legibly in it.
+    for (const selector of ['.attribution__dot', '.mechanism__rule', '.amount__band']) {
+      const style = await styleOf(page, selector, ['background-color', 'border-top-color']);
+      expect(style?.['background-color'], `${selector} background`).not.toBe(accent);
+      expect(style?.['border-top-color'], `${selector} border`).not.toBe(accent);
+    }
+
+    const cta = await styleOf(page, '.cta', ['background-color']);
+    expect(cta?.['background-color']).not.toBe(accent);
+  });
+
+  test('is not entered by a token set that merely needs its label re-picked', async ({ page }) => {
+    await loadPartnerPage(page);
+    // Pale accent, unreadable label, but a perfectly legible body: the guard should fix only the
+    // label and leave the partner's brand alone.
+    await mountCard(page, { ...CONFIG, theme: { accent: '#f2e205', accentText: '#ffffff' } });
+
+    const rule = await styleOf(page, '.rule', ['background-color']);
+    expect(rule).toBeNull();
+
+    const cta = await styleOf(page, '.cta', ['background-color', 'color']);
+    expect(cta?.['background-color']).toBe('rgb(242, 226, 5)');
+    expect(cta?.['color']).toBe('rgb(0, 0, 0)');
+  });
+});
+
 test.describe('container queries', () => {
   const widthOf = async (
     page: import('@playwright/test').Page,

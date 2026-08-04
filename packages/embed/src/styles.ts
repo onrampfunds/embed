@@ -190,13 +190,25 @@ export const BASE_CSS = `
   outline: 2px solid ${text};
   outline-offset: 2px;
 }
-/* Safe mode: the accent survives only as the top rule, and the action is filled with ink. */
+/* Safe mode — the last resort, when the body pairing itself cannot be rescued.
+   Neutral everything: the accent survives only as the 3px top rule, and every other place it
+   would normally appear is driven from the text and border tokens instead. Leaving the dot, the
+   band, and the mechanism rule accent-coloured would keep presenting the partner's brand on a
+   card we have just decided we cannot render legibly in it. */
 .card--safe .cta {
   background: ${text};
   color: ${surface};
   border-color: ${text};
 }
 .card--safe .cta:focus-visible { outline-color: ${text}; }
+/* Matches the attribution text it sits beside. */
+.card--safe .attribution__dot { background: currentColor; }
+.card--safe .amount__band {
+  background: ${mix(text, MIX.disclosureFill, surface)};
+  border-color: ${border};
+}
+/* Same visual weight as the accent version, in ink. */
+.card--safe .mechanism__rule { background: ${mix(text, MIX.mechanismRule, surface)}; }
 
 .departure {
   margin: 0;

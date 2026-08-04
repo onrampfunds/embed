@@ -53,6 +53,7 @@
     "build": "rollup -c",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "pretest:e2e": "npm run build",
     "test:e2e": "playwright test"
   }
 }
