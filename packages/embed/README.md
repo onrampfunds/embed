@@ -16,7 +16,8 @@ import { mount } from '@onrampfunds/embed';
 mount('#capital', {
   amount: 40000,
   currency: 'USD',
-  validUntil: '2026-08-06T07:00:00Z',
+  // Onramp-set, and illustrative here. Once it passes, the card renders its expired state.
+  validUntil: '2030-01-01T00:00:00Z',
   applyUrl: 'https://onrampfunds.com/p/abc123...',
   lexicon: 'loan',
   copy: {
