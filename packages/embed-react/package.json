@@ -47,7 +47,8 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@onrampfunds/embed": "0.0.2"

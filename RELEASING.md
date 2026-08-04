@@ -84,8 +84,8 @@ one.
 end. Once it lands, both packages show npm's *"Built and signed on GitHub Actions"* badge — that
 badge is the confirmation that trusted publishing is working, and `0.0.1` will not have it.
 
-`@onrampfunds/embed` is the real library. `@onrampfunds/embed-react` remains a name-locking stub
-until CTO-344 lands the wrapper.
+`@onrampfunds/embed` is the core library and `@onrampfunds/embed-react` is the React wrapper
+around it. Both are real as of CTO-344, and they publish together at a matching version.
 
 ## The CDN build
 
