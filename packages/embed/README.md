@@ -59,7 +59,7 @@ the mount returned.
 | `amount` | `number \| null` | Major currency units — `40000` renders as `$40,000`. `null`, omitted, or `0` renders nothing. |
 | `currency` | `string` | ISO 4217. Defaults to `USD`. |
 | `validUntil` | `string` | ISO 8601. Once passed, the card renders its expired state. |
-| `applyUrl` | `string` | Required whenever there is an amount. Must be absolute `https:`. Pass the one from the prequalification response unchanged. |
+| `applyUrl` | `string` | Required whenever there is an amount. Absolute `https:`, or `http:` on loopback for local development. Pass the one from the prequalification response unchanged. |
 | `lexicon` | `'loan' \| 'mca'` | Defaults to `loan`. Comes from the prequalification response. |
 | `partnerName` | `string` | Renders as "for {name}", and names the site being left. |
 | `locale` | `string` | BCP 47. Defaults to the browser's. |

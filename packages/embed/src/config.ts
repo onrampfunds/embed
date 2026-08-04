@@ -160,7 +160,10 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
 
   const applyUrl = normalizeApplyUrl(config.applyUrl);
   if (applyUrl === null) {
-    return { ok: false, reason: 'applyUrl must be an absolute https: URL' };
+    return {
+      ok: false,
+      reason: 'applyUrl must be an absolute https: URL (or http: on loopback, for local development)',
+    };
   }
 
   const expired = validUntil !== null && validUntil.getTime() <= now.getTime();

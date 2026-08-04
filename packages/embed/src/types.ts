@@ -65,7 +65,11 @@ export interface MountConfig {
   currency?: string;
   /** ISO 8601 timestamp. Once passed, the card renders its expired state. */
   validUntil?: string;
-  /** Where the primary action goes. Must be `https:`. The library never constructs it. */
+  /**
+   * Where the primary action goes. Must be absolute `https:` — or `http:` on loopback
+   * (`localhost`, `127.0.0.1`, `[::1]`), so a partner can develop against a local Onramp. The
+   * library never constructs this URL, and the card names its host on the departure notice.
+   */
   applyUrl?: string;
   /** Defaults to `loan`. An unrecognised value is refused rather than guessed. */
   lexicon?: Lexicon;

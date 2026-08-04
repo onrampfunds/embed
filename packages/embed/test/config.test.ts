@@ -128,7 +128,7 @@ describe('normalize', () => {
         expect(rejected({ amount: 40000 })).toContain('applyUrl');
       });
 
-      it('must be absolute https', () => {
+      it('must be absolute https anywhere other than loopback', () => {
         expect(rejected({ ...base, applyUrl: '/apply' })).toContain('applyUrl');
         expect(rejected({ ...base, applyUrl: 'http://onrampfunds.com/p/a' })).toContain('applyUrl');
       });
