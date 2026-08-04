@@ -35,8 +35,14 @@ For **each** of `@onrampfunds/embed` and `@onrampfunds/embed-react`:
    - Repository: `embed`
    - Workflow filename: `release.yml`
    - Environment: `npm-publish`
-3. Set **Publishing access** to *Require two-factor authentication or an automation token*, and
-   leave no automation token issued.
+3. Set **Publishing access** to *Require two-factor authentication and disallow bypass 2fa tokens*
+   — the stricter of the two options — and delete any automation token that exists.
+
+   npm notes on that screen that every publishing-access option is compatible with OIDC trusted
+   publishers, so this does not affect the release workflow. What it removes is the class of
+   credential that can publish with no human present, which is the entire reason for preferring
+   trusted publishing in the first place. Nothing is lost: publishing by hand with interactive 2FA
+   still works.
 
 If npm lets you do that for an unpublished name, you are done — skip to **Cutting a release**.
 
