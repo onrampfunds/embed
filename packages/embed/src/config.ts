@@ -127,6 +127,15 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
     onEvent,
   };
 
+  // Refused rather than treated as 'auto', for the same reason as `lexicon`: a typo like
+  // 'mounting ' would otherwise fall through and surface as a confusing complaint about a missing
+  // applyUrl, several steps from the actual mistake.
+  if (config.state !== undefined && config.state !== null) {
+    if (config.state !== 'auto' && config.state !== 'mounting') {
+      return { ok: false, reason: `state must be 'auto' or 'mounting', got ${JSON.stringify(config.state)}` };
+    }
+  }
+
   // The partner is still fetching. No amount is expected yet, so nothing else is required.
   if (config.state === 'mounting') {
     return { ok: true, config: { ...base, state: 'mounting', amount: null, applyUrl: '', applyHost: null } };

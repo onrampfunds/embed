@@ -1,5 +1,13 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { CONFIG, HOSTILE_PARTNER_CSS, loadPartnerPage, mountCard, styleOf } from './fixture';
+import {
+  CONFIG,
+  HOSTILE_PARTNER_CSS,
+  loadPartnerPage,
+  mountCard,
+  styleOf,
+  UMD_BUNDLE,
+} from './fixture';
 
 test.describe('style isolation', () => {
   test.beforeEach(async ({ page }) => {
@@ -100,6 +108,69 @@ test.describe('the shadow root', () => {
     expect(probe.mounted).toBe(true);
     expect(probe.shadowRoot).toBeNull();
     expect(probe.textLeaked).toBe(false);
+  });
+});
+
+test.describe('content security policy', () => {
+  test('installs styles through the CSSOM, not an inline <style>', async ({ page }) => {
+    await loadPartnerPage(page);
+    await mountCard(page, CONFIG);
+
+    const how = await page.evaluate(() => {
+      const root = window.__roots[0];
+      return {
+        adopted: root?.adoptedStyleSheets?.length ?? 0,
+        styleElements: root?.querySelectorAll('style').length ?? 0,
+        styled: getComputedStyle(root!.querySelector('.card')!).backgroundColor,
+      };
+    });
+
+    // Rules inserted through the CSSOM are not subject to `style-src`, which is what lets a
+    // partner adopt the card without touching their policy. The `<style>` fallback exists for
+    // engines without adoptedStyleSheets — it must not be what runs on a supported browser.
+    expect(how.adopted).toBe(1);
+    expect(how.styleElements).toBe(0);
+    expect(how.styled).toBe('rgb(255, 255, 255)');
+  });
+
+  test('renders under a style-src policy that forbids inline styles', async ({ page }) => {
+    // A genuinely strict policy, with the bundle served same-origin so `'self'` covers it — the
+    // partner allows our script source and nothing else, which is exactly the claim being tested.
+    await page.route('https://partner.test/onramp-embed.umd.js', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/javascript',
+        body: readFileSync(UMD_BUNDLE, 'utf8'),
+      }),
+    );
+    await page.route('https://partner.test/dashboard', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        headers: { 'content-security-policy': "default-src 'self'; style-src 'none'" },
+        body:
+          '<!doctype html><html><body><div id="capital"></div>' +
+          '<script src="/onramp-embed.umd.js"></script></body></html>',
+      }),
+    );
+    await page.addInitScript(() => {
+      window.__roots = [];
+      window.__modes = [];
+      const original = Element.prototype.attachShadow;
+      Element.prototype.attachShadow = function attachShadow(this: Element, init: ShadowRootInit) {
+        window.__modes.push(init.mode);
+        const root = original.call(this, { ...init, mode: 'open' });
+        window.__roots.push(root);
+        return root;
+      };
+    });
+    await page.goto('https://partner.test/dashboard');
+    await mountCard(page, CONFIG);
+
+    const background = await page.evaluate(
+      () => getComputedStyle(window.__roots[0]!.querySelector('.card')!).backgroundColor,
+    );
+    expect(background).toBe('rgb(255, 255, 255)');
   });
 });
 

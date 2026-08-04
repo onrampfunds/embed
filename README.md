@@ -65,7 +65,10 @@ Full API, token reference, and copy contract: [`packages/embed/README.md`](packa
 - **Style isolation in both directions.** Partner CSS cannot reach inside the shadow root, and the
   component leaks nothing into the partner's page. There is a test that tries.
 - **No CSP change beyond the script source.** Styles are installed through constructable
-  stylesheets rather than inline `<style>`, so `style-src 'unsafe-inline'` is not required.
+  stylesheets rather than inline `<style>`, so `style-src 'unsafe-inline'` is not required. Every
+  browser this library supports implements them; the `<style>` fallback only exists for engines
+  below that baseline, where a strict `style-src` would block it. See
+  [the note in the package README](packages/embed/README.md#isolation).
 - **WCAG AA inside the shadow root.** Partner tokens that fail contrast are corrected at mount and
   the reason is logged.
 - **It never renders a card without a disclosure.** Every served string has a baked fallback.

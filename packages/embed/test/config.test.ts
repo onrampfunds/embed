@@ -78,6 +78,18 @@ describe('normalize', () => {
       expect(config.state).toBe('mounting');
       expect(config.amount).toBeNull();
     });
+
+    it('treats an explicit auto as the ordinary path', () => {
+      expect(ok({ ...base, state: 'auto' }).state).toBe('prequalified');
+    });
+
+    it('refuses an unrecognised state rather than silently treating it as auto', () => {
+      // 'mounting ' falling through to auto would surface as a confusing complaint about a
+      // missing applyUrl, several steps away from the actual typo.
+      expect(rejected({ state: 'mounting ' })).toContain('state');
+      expect(rejected({ ...base, state: 'loading' })).toContain('state');
+      expect(rejected({ ...base, state: 1 })).toContain('state');
+    });
   });
 
   describe('malformed config', () => {

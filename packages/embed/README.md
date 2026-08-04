@@ -177,8 +177,17 @@ Two consequences worth knowing about:
   way round, so a shadow tree's rules beat the outer document's — your page cannot `display: none`
   our host element. You can of course hide your own container, and `unmount()` is the supported way
   to remove the card.
-- **Styles install through constructable stylesheets**, not an inline `<style>`, so you need no CSP
-  change beyond allowing our script source. There is a `<style>` fallback for older engines.
+- **Styles install through constructable stylesheets**, not an inline `<style>`. Rules inserted
+  through the CSSOM are not subject to `style-src`, so you need no CSP change beyond allowing our
+  script source — no `'unsafe-inline'`, no nonce, no hash.
+
+  To be precise about the guarantee: `adoptedStyleSheets` is supported by **every browser in the
+  support matrix below** — it landed well before the container-query and `color-mix()` features
+  that set the baseline — so on any browser that can render this card at all, the constructable
+  path is the one that runs. There is a `<style>` fallback for engines without it (and for jsdom,
+  under test). That fallback *is* subject to `style-src`, so under a strict policy on a
+  sub-baseline engine it would be blocked and the card would render unstyled. A Playwright test
+  asserts the constructable path is the one actually taken.
 
 ## Sizing
 
