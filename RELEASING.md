@@ -49,29 +49,38 @@ afterwards, and never publish by hand again.
 
 ## Cutting a release
 
+Versions are not edited by hand. A PR that changes behaviour carries a **changeset** describing
+its bump:
+
 ```sh
-# 1. Set the version everywhere at once. Both packages and the repo move together.
-npm version 0.0.5 --workspaces --include-workspace-root --no-git-tag-version
-
-# 2. Update the wrapper's pin on the core and the exported constant.
-#    check:versions will tell you if you miss one.
-#    - packages/embed-react/package.json  → dependencies["@onrampfunds/embed"]
-#    - packages/embed/src/constants.ts    → VERSION
-
-# 3. Prove it.
-npm run verify
-
-# 4. Tag and push. The tag drives the release.
-git commit -am "Release 0.0.5"
-git tag v0.0.5
-git push origin main --tags
+npm run changeset
 ```
 
-The workflow checks the tag matches the package version, runs the full verification again, then
-publishes the core first and the wrapper second.
+That asks which packages changed and whether it is a patch, minor or major, and writes a small
+markdown file into `.changeset/`. Commit it with your PR. A PR that changes nothing users can
+observe — docs, tests, CI — needs no changeset.
 
-You can also run it from the Actions tab with **Run workflow**; it defaults to a dry run that
-packs and verifies without publishing.
+Both packages are a **fixed** group, so a bump to either moves both. That is the lockstep promise
+the README makes to partners, enforced by tooling rather than by discipline.
+
+### Then it releases itself
+
+When your PR lands on `main`, the release workflow opens a **"Release: version packages"** PR that
+performs the entire bump: both manifests, the wrapper's exact pin on the core, the two exported
+version literals, and the private root manifest. Review it, merge it, approve the `npm-publish`
+environment, and it publishes both packages and uploads the CDN bundle.
+
+**Merging the version PR is the release.** There is no tag to push and no version to type, which
+is deliberate: every release before this one needed a manual six-file edit, `check:versions` caught
+a missed file on *every* one of them, and a `v0.0.5` tag once reached a `main` still on `0.0.4`
+because the bump lived in a different PR from the change that required it.
+
+`check:versions` still runs. It is the backstop now rather than the mechanism.
+
+### Publishing without a code change
+
+Run the workflow manually from the Actions tab. With no pending changesets it does nothing, which
+is the correct answer — if there is nothing to release, there is nothing to release.
 
 ## Release history
 

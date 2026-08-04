@@ -1,28 +1,41 @@
 name: Release
 
+# Driven by Changesets, not by hand-pushed tags.
+#
+# A PR that changes behaviour carries a changeset describing its bump. When it lands here, this
+# workflow finds the pending changesets and opens a "Version Packages" PR that performs the whole
+# bump — both manifests, the wrapper's exact pin on the core, the two exported version literals,
+# and the private root. Merging *that* PR runs this workflow again, finds nothing pending, and
+# publishes.
+#
+# The version can therefore never disagree with the thing being released, which is how a v0.0.5
+# tag once arrived at a main still on 0.0.4.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      dry-run:
-        description: 'Pack and verify without publishing'
-        type: boolean
-        default: true
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
   # Trusted publishing: the workflow proves its own identity to npm over OIDC, so there is no
   # long-lived automation token in repository secrets to leak or rotate.
   id-token: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  publish:
-    name: Publish both packages
+  release:
+    name: Version or publish
     runs-on: ubuntu-latest
     environment: npm-publish
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Changesets needs history to work out what has already been released.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -30,10 +43,9 @@ jobs:
           cache: npm
           registry-url: 'https://registry.npmjs.org'
 
-      # Trusted publishing needs npm 11.5.1 or newer; Node 22 still ships npm 10.
-      # Pinned rather than `@latest` so a release is reproducible and a new npm
-      # major cannot break publishing on a day nobody touched this repo. Bump it
-      # deliberately.
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 still ships npm 10. Pinned rather
+      # than `@latest` so a release is reproducible and a new npm major cannot break publishing on
+      # a day nobody touched this repo.
       - name: Use an npm that supports trusted publishing
         run: |
           npm install -g npm@11.5.1
@@ -41,48 +53,27 @@ jobs:
 
       - run: npm ci
 
-      - name: Check the tag matches the package version
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          tag="${GITHUB_REF_NAME#v}"
-          version="$(node -p "require('./packages/embed/package.json').version")"
-          if [ "$tag" != "$version" ]; then
-            echo "::error::tag $GITHUB_REF_NAME does not match package version $version"
-            exit 1
-          fi
-
-      # Nothing publishes unless the full verification passes: the guards run here as well as in
-      # CI, because this is the last point at which a bad artefact can be stopped.
-      - run: npm run verify
-
-      # A tag push always publishes; only workflow_dispatch consults `dry-run`.
-      #
-      # Written against `github.event_name` rather than relying on `inputs` being empty on a push
-      # event. It very likely is, but "is this expression truthy on a tag push" is not a question
-      # anyone should have to answer from memory while reading the step that publishes to a public
-      # registry — and being wrong fails in both directions, either a release that silently does
-      # nothing or one that publishes when it should not.
-      - name: Publish @onrampfunds/embed
-        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
-        run: npm publish --workspace @onrampfunds/embed
-
-      # Published second, because it depends on the exact core version above.
-      - name: Publish @onrampfunds/embed-react
-        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
-        run: npm publish --workspace @onrampfunds/embed-react
-
-      - name: Dry run
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run == true }}
-        run: |
-          npm publish --workspace @onrampfunds/embed --dry-run
-          npm publish --workspace @onrampfunds/embed-react --dry-run
-
-      # Runs after npm, deliberately. If npm fails we want nothing on the CDN; the reverse order
-      # would leave an immutable, undeletable bundle for a version that was never published.
-      - name: Upload the CDN bundle to R2
-        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
+      - name: Version or publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          # Performs the bump and opens the PR. `npm run verify` runs inside `release`, so nothing
+          # publishes without the full suite and every guard passing.
+          version: npm run version
+          publish: npm run release
+          title: 'Release: version packages'
+          commit: 'Version packages'
         env:
-          # R2 speaks S3, so the AWS CLI on the runner is enough — no extra dependency.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Only after something actually reached npm. A version PR merging without a publish must not
+      # touch R2 — and a version path there is immutable, so a spurious upload cannot be undone.
+      #
+      # Runs after npm for the same reason it always did: a failed publish should never leave an
+      # undeletable bundle on the CDN for a version that does not exist on the registry.
+      - name: Upload the CDN bundle to R2
+        if: steps.changesets.outputs.published == 'true'
+        env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
@@ -116,9 +107,6 @@ jobs:
 
           # The map goes first: if the second upload fails, an unreferenced map is inert, whereas
           # a bundle whose sourceMappingURL 404s is a broken devtools experience for every partner.
-          #
-          # Cache-Control is set on the object as well as in the Cloudflare cache rules. The rules
-          # govern the edge; this governs the browser, and it keeps the intent readable here.
           upload() {
             aws s3api put-object \
               --endpoint-url "$endpoint" --bucket "$bucket" \
@@ -150,7 +138,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Record the CDN integrity hash
-        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
+        if: steps.changesets.outputs.published == 'true'
         run: |
           set -euo pipefail
           hash="sha384-$(openssl dgst -sha384 -binary packages/embed/dist/onramp-embed.umd.js | openssl base64 -A)"

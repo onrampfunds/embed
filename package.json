@@ -21,6 +21,9 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "clean": "node -e \"require('node:fs').rmSync('packages/embed/dist',{recursive:true,force:true});require('node:fs').rmSync('packages/embed-react/dist',{recursive:true,force:true})\"",
+    "changeset": "changeset",
+    "version": "changeset version && node scripts/sync-version.mjs && npm install --package-lock-only --ignore-scripts",
+    "release": "npm run verify && changeset publish",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "test:e2e": "npm run test:e2e --workspace @onrampfunds/embed",
@@ -32,6 +35,7 @@
     "verify": "npm run build && npm run typecheck && npm test && npm run check:versions && npm run check:deps && npm run check:size && npm run check:network && npm run check:pack"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.1",
     "@playwright/test": "^1.49.1",
     "@rollup/plugin-terser": "^1.0.0",
     "@rollup/plugin-typescript": "^12.1.2",
