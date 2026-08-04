@@ -11,8 +11,8 @@ export default [
     input,
     external,
     output: [
-      { file: 'dist/index.mjs', format: 'es', sourcemap: true },
-      { file: 'dist/index.cjs', format: 'cjs', sourcemap: true, exports: 'named' },
+      { file: 'dist/index.mjs', format: 'es', sourcemap: true, sourcemapExcludeSources: true },
+      { file: 'dist/index.cjs', format: 'cjs', sourcemap: true, sourcemapExcludeSources: true, exports: 'named' },
     ],
     plugins: [typescript({ tsconfig: './tsconfig.build.json' })],
   },
