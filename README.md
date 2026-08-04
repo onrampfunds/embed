@@ -33,7 +33,7 @@ check the integrity hash, which is published in each GitHub release:
 
 ```html
 <script
-  src="https://js.onrampfunds.com/embed/0.0.1/onramp-embed.umd.js"
+  src="https://js.onrampfunds.com/embed/0.0.2/onramp-embed.umd.js"
   integrity="sha384-<published with each release>"
   crossorigin="anonymous"
 ></script>

@@ -5,83 +5,53 @@ Both packages publish **at the same version, from the same release, in one workf
 has to work out which wrapper pairs with which core, and `npm run check:versions` fails the build
 if the two ever drift.
 
-## One-time setup on npmjs.com
-
-This is the part that cannot be done from this repository — it needs someone with **admin on the
-`@onrampfunds` npm org**. Until it is done, the release workflow will fail at the publish step.
+## Publishing setup — done
 
 Publishing uses **trusted publishing**: the workflow proves its own identity to npm over OIDC, so
-there is no long-lived `NPM_TOKEN` in repository secrets to leak or rotate. For a public package
-that loads into partner dashboards, this is worth doing before the first publish rather than
-retrofitting.
+there is no long-lived `NPM_TOKEN` in repository secrets to leak or rotate.
 
-Neither package exists on the registry yet — both `@onrampfunds/embed` and
-`@onrampfunds/embed-react` currently 404 — so the very first publish has a chicken-and-egg
-problem worth understanding before you start.
+This is configured and no longer needs doing. Recorded here because it is the part that cannot be
+done from this repository — it needs admin on the `@onrampfunds` npm org — and because anyone
+adding a **third** package will hit the same sequence.
 
-**Trusted publishing is configured per package, in that package's settings.** npm's documentation
-does not say whether a trusted publisher can be attached to a name that has never been published.
-It may be possible from the org's package screen; it may not. Try the clean path first and fall
-back if npm refuses.
+**What is in place:**
 
-### The clean path — try this first
+| | |
+| --- | --- |
+| `@onrampfunds/embed` | published, trusted publisher configured |
+| `@onrampfunds/embed-react` | published, trusted publisher configured |
+| GitHub environment | `npm-publish`, with a protection rule |
+| Automation tokens | none, deliberately |
 
-For **each** of `@onrampfunds/embed` and `@onrampfunds/embed-react`:
+**The trusted publisher on each package** is a GitHub Actions publisher pointing at
+`onrampfunds` / `embed` / `release.yml` / `npm-publish`, allowed to **publish only** — the
+workflow performs no other registry action, and a credential should not carry permissions no code
+path uses. **Publishing access** on each is set to *require two-factor authentication and disallow
+bypass 2fa tokens*, the stricter option; npm confirms on that screen that every publishing-access
+option is compatible with OIDC, so it costs the workflow nothing.
 
-1. On npmjs.com, open the package settings → **Publishing access** → **Trusted publisher**. If the
-   package does not exist yet, look for the org's **Add package** / **Create package** flow.
-2. Add a **GitHub Actions** publisher with:
-   - Organization or user: `onrampfunds`
-   - Repository: `embed`
-   - Workflow filename: `release.yml`
-   - Environment: `npm-publish`
-3. Set **Publishing access** to *Require two-factor authentication and disallow bypass 2fa tokens*
-   — the stricter of the two options — and delete any automation token that exists.
+**Do not add an `NPM_TOKEN` secret.** If one ever appears, delete it — it defeats the point.
 
-   npm notes on that screen that every publishing-access option is compatible with OIDC trusted
-   publishers, so this does not affect the release workflow. What it removes is the class of
-   credential that can publish with no human present, which is the entire reason for preferring
-   trusted publishing in the first place. Nothing is lost: publishing by hand with interactive 2FA
-   still works.
+### If you add a third package
 
-If npm lets you do that for an unpublished name, you are done — skip to **Cutting a release**.
-
-### The fallback — one manual publish to create the name
-
-If npm will not configure a trusted publisher for a package that does not exist, bootstrap each
-name once by hand, then switch to OIDC permanently.
+npm attaches a trusted publisher to a package, and its documentation does not say whether one can
+be attached to a name that has never been published. It could not be done for these two, so both
+names were created by hand first:
 
 ```sh
-npm login                      # your own account; the org requires 2FA, so expect an OTP prompt
-npm publish --workspace @onrampfunds/embed      --provenance=false --access public
-npm publish --workspace @onrampfunds/embed-react --provenance=false --access public
+npm publish --workspace @onrampfunds/<new> --provenance=false --access public
 ```
 
-Two things about that command:
-
-- **`--provenance=false` is required.** Both manifests set `"provenance": true`, and provenance can
-  only be generated from a supported CI with an OIDC token — a publish from your laptop fails
-  outright with it enabled. The `0.0.1` bootstrap therefore has no attestation; every release from
-  the workflow afterwards does.
-- **Publish the core first.** The wrapper depends on the exact core version and npm will reject it
-  if that version does not exist yet.
-
-Then go back and add the trusted publisher to each package as above. Once that is in place, never
-publish from a laptop again.
-
-### GitHub side
-
-In GitHub → Settings → Environments, create an environment named **`npm-publish`** and add
-whatever reviewers you want gating a release. The workflow already references it, and the name has
-to match what you entered on npm.
-
-**Do not add an `NPM_TOKEN` secret.** If one exists, delete it — it defeats the point.
+`--provenance=false` is required for that one bootstrap publish: provenance can only be generated
+from a supported CI with an OIDC token, so a publish from a laptop fails outright with it enabled.
+That first version therefore carries no attestation. Configure the trusted publisher immediately
+afterwards, and never publish by hand again.
 
 ## Cutting a release
 
 ```sh
 # 1. Set the version everywhere at once. Both packages and the repo move together.
-npm version 0.0.1 --workspaces --include-workspace-root --no-git-tag-version
+npm version 0.0.2 --workspaces --include-workspace-root --no-git-tag-version
 
 # 2. Update the wrapper's pin on the core and the exported constant.
 #    check:versions will tell you if you miss one.
@@ -92,8 +62,8 @@ npm version 0.0.1 --workspaces --include-workspace-root --no-git-tag-version
 npm run verify
 
 # 4. Tag and push. The tag drives the release.
-git commit -am "Release 0.0.1"
-git tag v0.0.1
+git commit -am "Release 0.0.2"
+git tag v0.0.2
 git push origin main --tags
 ```
 
@@ -103,13 +73,19 @@ publishes the core first and the wrapper second.
 You can also run it from the Actions tab with **Run workflow**; it defaults to a dry run that
 packs and verifies without publishing.
 
-## The first release
+## Release history
 
-`0.0.1` of **both** packages is a placeholder, published to lock both names and prove the pipeline
-end to end before anyone depends on either.
+`0.0.1` of both packages was published **by hand**, to create the two names so that trusted
+publishing could be configured against them. It carries no provenance attestation, because
+provenance requires a supported CI with an OIDC token and a publish from a laptop cannot produce
+one.
 
-`@onrampfunds/embed` at `0.0.1` is the real library. `@onrampfunds/embed-react` at `0.0.1` is a
-name-locking stub — the wrapper itself is CTO-344.
+`0.0.2` is the first release through the workflow, and the one that proves the pipeline end to
+end. Once it lands, both packages show npm's *"Built and signed on GitHub Actions"* badge — that
+badge is the confirmation that trusted publishing is working, and `0.0.1` will not have it.
+
+`@onrampfunds/embed` is the real library. `@onrampfunds/embed-react` remains a name-locking stub
+until CTO-344 lands the wrapper.
 
 ## The CDN build
 
@@ -118,7 +94,7 @@ the Onramp-controlled origin at an **immutable, version-pinned path**, and updat
 separately:
 
 ```
-https://js.onrampfunds.com/embed/0.0.1/onramp-embed.umd.js   ← immutable, hashed, SRI-pinnable
+https://js.onrampfunds.com/embed/0.0.2/onramp-embed.umd.js   ← immutable, hashed, SRI-pinnable
 https://js.onrampfunds.com/embed/v1/onramp-embed.umd.js      ← mutable alias, no SRI
 ```
 

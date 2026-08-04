@@ -27,4 +27,4 @@
 export { version as coreVersion } from '@onrampfunds/embed';
 
 /** The version of this package. Matches the core it is pinned to. */
-export const version = '0.0.1';
+export const version = '0.0.2';

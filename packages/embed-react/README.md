@@ -2,7 +2,7 @@
 
 React wrapper for [`@onrampfunds/embed`](https://github.com/onrampfunds/embed/tree/main/packages/embed).
 
-> **This `0.0.1` is a placeholder.** It exists to reserve the package name and to prove the release
+> **This is a placeholder release.** It exists to reserve the package name and to prove the release
 > pipeline publishes both packages together, before anyone depends on either. The component itself
 > is not here yet — it lands in **CTO-344**.
 
