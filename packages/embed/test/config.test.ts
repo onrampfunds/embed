@@ -143,6 +143,36 @@ describe('normalize', () => {
       expect(rejected({ ...base, validUntil: 12345 })).toContain('validUntil');
     });
 
+    it.each([
+      ['a US-style date', '08/06/2026'],
+      ['a slashed date', '2026/08/06'],
+      ['a spelled-out date', 'March 5 2027'],
+      ['a toString-style date', 'Sat Aug 06 2026'],
+      ['a datetime with no offset', '2026-08-06T07:00:00'],
+    ])('rejects %s, which new Date() would have accepted', (_label, value) => {
+      // All of these parse in V8, and what any given engine accepts is not specified. The one
+      // without an offset is the dangerous one: it reads as local time, so the same string is a
+      // different instant per merchant — for a value deciding whether a figure is shown, that
+      // difference is not carryable.
+      expect(Number.isNaN(new Date(value as string).getTime())).toBe(false);
+      expect(rejected({ ...base, validUntil: value })).toContain('validUntil');
+    });
+
+    it.each([
+      ['UTC', '2026-08-06T07:00:00Z'],
+      ['a positive offset', '2026-08-06T07:00:00+02:00'],
+      ['a negative offset', '2026-08-06T07:00:00-05:00'],
+      ['milliseconds', '2026-08-06T07:00:00.250Z'],
+      ['minutes only', '2026-08-06T07:00Z'],
+      ['a bare date', '2026-08-06'],
+    ])('accepts %s', (_label, value) => {
+      expect(ok({ ...base, validUntil: value }).validUntil).toBeInstanceOf(Date);
+    });
+
+    it('rejects a well-shaped string that is not a real date', () => {
+      expect(rejected({ ...base, validUntil: '2026-13-45' })).toContain('validUntil');
+    });
+
     it('rejects a bad currency code', () => {
       expect(rejected({ ...base, currency: 'DOLLARS' })).toContain('currency');
       expect(rejected({ ...base, currency: 12 })).toContain('currency');

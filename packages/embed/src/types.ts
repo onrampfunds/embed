@@ -63,7 +63,11 @@ export interface MountConfig {
   amount?: number | null;
   /** ISO 4217 code. Defaults to `USD`. */
   currency?: string;
-  /** ISO 8601 timestamp. Once passed, the card renders its expired state. */
+  /**
+   * ISO 8601 — a date, or a datetime carrying an explicit offset. A datetime without one
+   * reads as local time, which would make the same string a different instant per merchant.
+   * Once it passes, the card renders its expired state.
+   */
   validUntil?: string;
   /**
    * Where the primary action goes. Must be absolute `https:` — or `http:` on loopback
