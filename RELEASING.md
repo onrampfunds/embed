@@ -51,7 +51,7 @@ afterwards, and never publish by hand again.
 
 ```sh
 # 1. Set the version everywhere at once. Both packages and the repo move together.
-npm version 0.0.2 --workspaces --include-workspace-root --no-git-tag-version
+npm version 0.0.3 --workspaces --include-workspace-root --no-git-tag-version
 
 # 2. Update the wrapper's pin on the core and the exported constant.
 #    check:versions will tell you if you miss one.
@@ -62,8 +62,8 @@ npm version 0.0.2 --workspaces --include-workspace-root --no-git-tag-version
 npm run verify
 
 # 4. Tag and push. The tag drives the release.
-git commit -am "Release 0.0.2"
-git tag v0.0.2
+git commit -am "Release 0.0.3"
+git tag v0.0.3
 git push origin main --tags
 ```
 
@@ -75,17 +75,11 @@ packs and verifies without publishing.
 
 ## Release history
 
-`0.0.1` of both packages was published **by hand**, to create the two names so that trusted
-publishing could be configured against them. It carries no provenance attestation, because
-provenance requires a supported CI with an OIDC token and a publish from a laptop cannot produce
-one.
-
-`0.0.2` is the first release through the workflow, and the one that proves the pipeline end to
-end. Once it lands, both packages show npm's *"Built and signed on GitHub Actions"* badge — that
-badge is the confirmation that trusted publishing is working, and `0.0.1` will not have it.
-
-`@onrampfunds/embed` is the core library and `@onrampfunds/embed-react` is the React wrapper
-around it. Both are real as of CTO-344, and they publish together at a matching version.
+| | |
+| --- | --- |
+| `0.0.1` | Published **by hand**, to create the two names so trusted publishing could be configured against them. No provenance attestation — provenance requires a supported CI with an OIDC token, and a publish from a laptop cannot produce one. |
+| `0.0.2` | The first release through the workflow. Both packages carry SLSA provenance and npm's *"Built and signed on GitHub Actions"* badge, which is the confirmation trusted publishing works end to end. `@onrampfunds/embed-react` at this version is still the name-locking stub. |
+| `0.0.3` | The React wrapper proper (CTO-344). |
 
 ## The CDN build
 
@@ -94,7 +88,7 @@ the Onramp-controlled origin at an **immutable, version-pinned path**, and updat
 separately:
 
 ```
-https://js.onrampfunds.com/embed/0.0.2/onramp-embed.umd.js   ← immutable, hashed, SRI-pinnable
+https://js.onrampfunds.com/embed/0.0.3/onramp-embed.umd.js   ← immutable, hashed, SRI-pinnable
 https://js.onrampfunds.com/embed/v1/onramp-embed.umd.js      ← mutable alias, no SRI
 ```
 
