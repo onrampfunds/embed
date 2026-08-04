@@ -23,8 +23,21 @@ export type NormalizeResult =
 const LEXICONS: readonly string[] = ['loan', 'mca'];
 const CURRENCY = /^[A-Za-z]{3}$/;
 
+/**
+ * A config-shaped object.
+ *
+ * `typeof value === 'object'` alone would accept a `Date`, a `Map`, an `Error` — anything that is
+ * technically an object but obviously not a config. Those would then normalise to the `none`
+ * state, because they have no `amount`, and render nothing silently. That is the wrong answer: a
+ * missing amount is a legitimate outcome, but a `Date` where a config should be is a mistake the
+ * partner needs told about.
+ *
+ * The `toString` tag is used rather than a prototype comparison because it still accepts objects
+ * from another realm — a micro-frontend passing config across an iframe boundary is legitimate,
+ * and `instanceof Object` would refuse it — as well as null-prototype objects and class instances.
+ */
 function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return Object.prototype.toString.call(value) === '[object Object]';
 }
 
 /** Strips control characters and clips length, so a partner string cannot deform the card. */

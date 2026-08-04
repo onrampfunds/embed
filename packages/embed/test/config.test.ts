@@ -97,6 +97,31 @@ describe('normalize', () => {
       expect(rejected(null)).toContain('object');
       expect(rejected('nope')).toContain('object');
       expect(rejected([])).toContain('object');
+      expect(rejected(undefined)).toContain('object');
+    });
+
+    it.each([
+      ['a Date', new Date()],
+      ['a Map', new Map()],
+      ['an Error', new Error('nope')],
+      ['a RegExp', /nope/],
+      ['a Promise', Promise.resolve()],
+      ['a function', () => undefined],
+    ])('rejects %s rather than treating it as an empty config', (_label, value) => {
+      // These have no `amount`, so a looser check would normalise them to `none` and render
+      // nothing silently. A missing amount is legitimate; a Date where a config goes is a bug.
+      expect(rejected(value)).toContain('object');
+    });
+
+    it.each([
+      ['a plain object', { amount: 40000 }],
+      ['a null-prototype object', Object.assign(Object.create(null), { amount: 40000 })],
+      ['a class instance', new (class Config { amount = 40000; })()],
+    ])('still accepts %s carrying the right fields', (_label, value) => {
+      // Deliberately not a prototype comparison: config arriving from another realm, from a
+      // null-prototype object, or from a class instance is all legitimate.
+      const result = normalize({ ...base, ...value }, NOW);
+      expect(result.ok).toBe(true);
     });
 
     it('refuses an unrecognised lexicon rather than guessing', () => {
