@@ -20,8 +20,16 @@ exact core version — you never have to reason about which wrapper pairs with w
 npm install @onrampfunds/embed
 ```
 
-Or load the UMD build from an Onramp-controlled origin. **Pin the exact version and check the
-integrity hash** — the hash for each release is published in its GitHub release notes:
+A UMD build ships in the package as `dist/onramp-embed.umd.js` and exposes `Onramp` as a global,
+so it works from a script tag today if you serve it yourself.
+
+> **The hosted CDN is not live yet.** `js.onrampfunds.com` does not exist at the time of writing —
+> npm is the supported path. The section below is the shape it will take, recorded here so the
+> release workflow and the docs agree; do not paste these URLs into a partner integration until
+> this note is gone.
+
+When it does exist, it will serve **immutable, version-pinned** paths. Pin the exact version and
+check the integrity hash, which is published in each GitHub release:
 
 ```html
 <script
@@ -31,9 +39,9 @@ integrity hash** — the hash for each release is published in its GitHub releas
 ></script>
 ```
 
-A `v1` alias also exists and always resolves to the newest 1.x build. It is there for partners who
-cannot pin, and it deliberately carries **no** integrity hash, because its content changes by
-design — you cannot have both a mutable alias and a fixed hash. Pin the version if you can.
+A `v1` alias will also resolve to the newest 1.x build, for partners who cannot pin. It carries
+**no** integrity hash by design — you cannot have both a mutable alias and a fixed hash. Pin the
+version if you can.
 
 ## Use
 

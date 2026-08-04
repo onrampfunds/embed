@@ -41,10 +41,16 @@ fallback into the slot — it never means the merchant was rejected.
 ```js
 const card = mount('#capital', config);
 
-card?.state; // 'prequalified' | 'expired' | 'mounting'
+card?.state; // what is rendered right now — see below
 card?.update(nextConfig); // re-render in place, returns the new state
 card?.unmount(); // remove the card and every listener it installed
 ```
+
+A handle is only ever returned for `'prequalified'`, `'expired'`, or `'mounting'`, but `state`
+tracks the lifecycle after that: `update()` can move it to any state including `'none'` (the new
+config has no amount) or `'invalid'` (the new config is malformed), and `unmount()` leaves it at
+`'none'`. So read `card.state` after a lifecycle call rather than assuming it still holds whatever
+the mount returned.
 
 ### Config
 
