@@ -38,6 +38,18 @@ Importing `@onrampfunds/embed` on the server is inert, so it is safe in a shared
 
 ## React
 
-The wrapper is [`@onrampfunds/embed-react`](../packages/embed-react), which is a placeholder until
-CTO-344. Until then the core library is a `ref` and an effect — see
-[that package's README](../packages/embed-react/README.md#until-then) for the component.
+Use [`@onrampfunds/embed-react`](../packages/embed-react):
+
+```tsx
+import { OnrampPrequalification } from '@onrampfunds/embed-react';
+
+<OnrampPrequalification
+  {...prequalification}
+  onEvent={(name, meta) => analytics.track(`onramp:${name}`, meta)}
+/>
+```
+
+The props are the core's mount config. The wrapper exists to get two things right that a
+hand-rolled `useEffect` usually does not: an inline `onEvent` must not remount the card, and
+strict mode's double-invoked effects must not produce two shadow roots. See
+[its README](../packages/embed-react/README.md).
