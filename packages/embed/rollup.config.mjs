@@ -6,14 +6,6 @@ const input = 'src/index.ts';
 
 const ts = () => typescript({ tsconfig: './tsconfig.build.json' });
 
-/**
- * Maps carry mappings only — never the original TypeScript.
- *
- * Rollup emits a `sourcesContent` array by default, which would put our `src/` verbatim into the
- * published tarball. Excluding it is a deliberate choice about what ships, not a size tweak, so
- * it is set explicitly rather than left to whatever the toolchain defaults to next.
- */
-const sourcemapExcludeSources = true;
 
 /**
  * The library has no dependencies at all, so nothing is ever external. If that stops being true,
@@ -23,8 +15,8 @@ export default [
   {
     input,
     output: [
-      { file: 'dist/index.mjs', format: 'es', sourcemap: true, sourcemapExcludeSources },
-      { file: 'dist/index.cjs', format: 'cjs', sourcemap: true, sourcemapExcludeSources, exports: 'named' },
+      { file: 'dist/index.mjs', format: 'es', sourcemap: true },
+      { file: 'dist/index.cjs', format: 'cjs', sourcemap: true, exports: 'named' },
     ],
     plugins: [ts()],
   },
@@ -37,7 +29,7 @@ export default [
       format: 'umd',
       name: 'Onramp',
       exports: 'named',
-      sourcemap: true, sourcemapExcludeSources,
+      sourcemap: true,
     },
     plugins: [
       ts(),

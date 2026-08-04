@@ -15,12 +15,21 @@ there is no long-lived `NPM_TOKEN` in repository secrets to leak or rotate. For 
 that loads into partner dashboards, this is worth doing before the first publish rather than
 retrofitting.
 
+Neither package exists on the registry yet — both `@onrampfunds/embed` and
+`@onrampfunds/embed-react` currently 404 — so the very first publish has a chicken-and-egg
+problem worth understanding before you start.
+
+**Trusted publishing is configured per package, in that package's settings.** npm's documentation
+does not say whether a trusted publisher can be attached to a name that has never been published.
+It may be possible from the org's package screen; it may not. Try the clean path first and fall
+back if npm refuses.
+
+### The clean path — try this first
+
 For **each** of `@onrampfunds/embed` and `@onrampfunds/embed-react`:
 
-1. Go to the package settings on npmjs.com → **Publishing access** → **Trusted publisher**.
-   For a package that does not exist yet, create the trusted publisher from the org's
-   **Packages → Add package** flow instead; npm allows configuring a publisher ahead of the first
-   version.
+1. On npmjs.com, open the package settings → **Publishing access** → **Trusted publisher**. If the
+   package does not exist yet, look for the org's **Add package** / **Create package** flow.
 2. Add a **GitHub Actions** publisher with:
    - Organization or user: `onrampfunds`
    - Repository: `embed`
@@ -29,8 +38,36 @@ For **each** of `@onrampfunds/embed` and `@onrampfunds/embed-react`:
 3. Set **Publishing access** to *Require two-factor authentication or an automation token*, and
    leave no automation token issued.
 
-Then, once in GitHub → Settings → Environments, create an environment named **`npm-publish`** and
-add whatever reviewers you want gating a release. The workflow already references it.
+If npm lets you do that for an unpublished name, you are done — skip to **Cutting a release**.
+
+### The fallback — one manual publish to create the name
+
+If npm will not configure a trusted publisher for a package that does not exist, bootstrap each
+name once by hand, then switch to OIDC permanently.
+
+```sh
+npm login                      # your own account; the org requires 2FA, so expect an OTP prompt
+npm publish --workspace @onrampfunds/embed      --provenance=false --access public
+npm publish --workspace @onrampfunds/embed-react --provenance=false --access public
+```
+
+Two things about that command:
+
+- **`--provenance=false` is required.** Both manifests set `"provenance": true`, and provenance can
+  only be generated from a supported CI with an OIDC token — a publish from your laptop fails
+  outright with it enabled. The `0.0.1` bootstrap therefore has no attestation; every release from
+  the workflow afterwards does.
+- **Publish the core first.** The wrapper depends on the exact core version and npm will reject it
+  if that version does not exist yet.
+
+Then go back and add the trusted publisher to each package as above. Once that is in place, never
+publish from a laptop again.
+
+### GitHub side
+
+In GitHub → Settings → Environments, create an environment named **`npm-publish`** and add
+whatever reviewers you want gating a release. The workflow already references it, and the name has
+to match what you entered on npm.
 
 **Do not add an `NPM_TOKEN` secret.** If one exists, delete it — it defeats the point.
 
