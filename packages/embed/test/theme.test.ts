@@ -58,6 +58,23 @@ describe('resolveTheme', () => {
     expect(theme.warnings.join(' ')).toContain('theme.fontStack');
   });
 
+  it('names the font key the partner actually passed', () => {
+    // Pointing at `theme.fontStack` when they wrote `theme.font` sends them to the wrong line.
+    expect(resolveTheme({ font: 'Inter; }' }).warnings.join(' ')).toContain('theme.font:');
+    expect(resolveTheme({ fontStack: 'Inter; }' }).warnings.join(' ')).toContain('theme.fontStack:');
+  });
+
+  it('bounds the radius identically whether it arrives as a number or a string', () => {
+    // `400` and '400px' describe the same corner; accepting one and refusing the other is the
+    // kind of inconsistency that costs someone an afternoon.
+    expect(resolveTheme({ radius: 400 }).tokens.radius).toBe(DEFAULT_TOKENS.radius);
+    expect(resolveTheme({ radius: '400px' }).tokens.radius).toBe(DEFAULT_TOKENS.radius);
+    expect(resolveTheme({ radius: '9999px' }).tokens.radius).toBe(DEFAULT_TOKENS.radius);
+    expect(resolveTheme({ radius: 200 }).tokens.radius).toBe('200px');
+    expect(resolveTheme({ radius: '200px' }).tokens.radius).toBe('200px');
+    expect(resolveTheme({ radius: '12.5rem' }).tokens.radius).toBe('12.5rem');
+  });
+
   describe('the contrast guard', () => {
     it('re-picks the action label when it fails against the accent, and keeps the accent', () => {
       // The design handoff's realistic failing set: pale yellow accent, white label.

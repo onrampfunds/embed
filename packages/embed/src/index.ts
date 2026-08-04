@@ -187,7 +187,9 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
       const onClick = (): void => {
         emit('click', { applyUrl: config.applyUrl, state: config.state });
       };
-      // Never prevented: the click is a real navigation, in the same tab, to the partner's URL.
+      // Never prevented: the click is a real full-page navigation, in the same tab, to the apply
+      // URL the partner was served — the merchant is leaving their product for Onramp, and the
+      // card says so.
       cta.addEventListener('click', onClick);
       detach = () => cta.removeEventListener('click', onClick);
     }

@@ -21,17 +21,25 @@ const COLOR_KEYS = ['accent', 'accentText', 'surface', 'text', 'border'] as cons
 /** A CSS length we are willing to interpolate into a stylesheet. */
 const LENGTH = /^(0|[0-9]{1,4}(\.[0-9]{1,3})?(px|rem|em))$/;
 
+/**
+ * Upper bound on a corner radius, applied to the number and the string forms alike — `400` and
+ * `'400px'` describe the same corner and must be treated the same way.
+ */
+const MAX_RADIUS = 200;
+
 /** Conservative: font families, separators, and quotes. No parens, semicolons, or braces. */
 const FONT_STACK = /^[\w\s,'"-]{1,200}$/;
 
 function sanitizeRadius(input: unknown): string | null {
   if (typeof input === 'number') {
-    if (!Number.isFinite(input) || input < 0 || input > 200) return null;
+    if (!Number.isFinite(input) || input < 0 || input > MAX_RADIUS) return null;
     return `${input}px`;
   }
   if (typeof input !== 'string') return null;
   const value = input.trim().toLowerCase();
-  return LENGTH.test(value) ? value : null;
+  if (!LENGTH.test(value)) return null;
+  const magnitude = parseFloat(value);
+  return Number.isFinite(magnitude) && magnitude >= 0 && magnitude <= MAX_RADIUS ? value : null;
 }
 
 function sanitizeFont(input: unknown): string | null {
@@ -102,12 +110,16 @@ export function resolveTheme(theme: ThemeTokens | undefined): ResolvedTheme {
     }
   }
 
+  // Named for the key the partner actually passed, so the warning points at the line they wrote
+  // rather than at the alias they did not use.
+  const usedFontAlias = input.fontStack === undefined || input.fontStack === null;
+  const fontKey = usedFontAlias ? 'font' : 'fontStack';
   const font = input.fontStack ?? input.font;
   if (font !== undefined && font !== null) {
     const sanitized = sanitizeFont(font);
     if (sanitized === null) {
       warnings.push(
-        `theme.fontStack: ${JSON.stringify(font)} is not an accepted font stack; using the ` +
+        `theme.${fontKey}: ${JSON.stringify(font)} is not an accepted font stack; using the ` +
           'Onramp default. Use a keyword (system, sans, serif, mono) or a plain family list.',
       );
     } else {
