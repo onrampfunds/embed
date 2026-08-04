@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Pack and verify without publishing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  # Trusted publishing: the workflow proves its own identity to npm over OIDC, so there is no
+  # long-lived automation token in repository secrets to leak or rotate.
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish both packages
+    runs-on: ubuntu-latest
+    environment: npm-publish
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing needs npm 11.5.1 or newer; Node 22 still ships npm 10.
+      # Pinned rather than `@latest` so a release is reproducible and a new npm
+      # major cannot break publishing on a day nobody touched this repo. Bump it
+      # deliberately.
+      - name: Use an npm that supports trusted publishing
+        run: |
+          npm install -g npm@11.5.1
+          npm --version
+
+      - run: npm ci
+
+      - name: Check the tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./packages/embed/package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package version $version"
+            exit 1
+          fi
+
+      # Nothing publishes unless the full verification passes: the guards run here as well as in
+      # CI, because this is the last point at which a bad artefact can be stopped.
+      - run: npm run verify
+
+      # A tag push always publishes; only workflow_dispatch consults `dry-run`.
+      #
+      # Written against `github.event_name` rather than relying on `inputs` being empty on a push
+      # event. It very likely is, but "is this expression truthy on a tag push" is not a question
+      # anyone should have to answer from memory while reading the step that publishes to a public
+      # registry — and being wrong fails in both directions, either a release that silently does
+      # nothing or one that publishes when it should not.
+      - name: Publish @onrampfunds/embed
+        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
+        run: npm publish --workspace @onrampfunds/embed
+
+      # Published second, because it depends on the exact core version above.
+      - name: Publish @onrampfunds/embed-react
+        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
+        run: npm publish --workspace @onrampfunds/embed-react
+
+      - name: Dry run
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run == true }}
+        run: |
+          npm publish --workspace @onrampfunds/embed --dry-run
+          npm publish --workspace @onrampfunds/embed-react --dry-run
+
+      - name: Record the CDN integrity hash
+        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
+        run: |
+          hash="sha384-$(openssl dgst -sha384 -binary packages/embed/dist/onramp-embed.umd.js | openssl base64 -A)"
+          echo "### Subresource integrity" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```html' >> "$GITHUB_STEP_SUMMARY"
+          echo "<script src=\"https://js.onrampfunds.com/embed/${GITHUB_REF_NAME#v}/onramp-embed.umd.js\"" >> "$GITHUB_STEP_SUMMARY"
+          echo "        integrity=\"$hash\"" >> "$GITHUB_STEP_SUMMARY"
+          echo '        crossorigin="anonymous"></script>' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

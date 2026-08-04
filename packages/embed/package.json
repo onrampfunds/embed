@@ -1,0 +1,59 @@
+{
+  "name": "@onrampfunds/embed",
+  "version": "0.0.2",
+  "description": "Renders a merchant's Onramp Funds prequalification into your page, in shadow DOM. Zero dependencies, zero network calls.",
+  "license": "MIT",
+  "author": "Onramp Funds",
+  "homepage": "https://github.com/onrampfunds/embed/tree/main/packages/embed#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onrampfunds/embed.git",
+    "directory": "packages/embed"
+  },
+  "bugs": {
+    "url": "https://github.com/onrampfunds/embed/issues"
+  },
+  "keywords": [
+    "onramp",
+    "onramp-funds",
+    "embedded-finance",
+    "prequalification",
+    "working-capital",
+    "shadow-dom",
+    "widget"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/onramp-embed.umd.js",
+  "jsdelivr": "./dist/onramp-embed.umd.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "pretest:e2e": "npm run build",
+    "test:e2e": "playwright test"
+  }
+}

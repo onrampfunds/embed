@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build, typecheck, test, guards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Build first: the React wrapper typechecks against the core's emitted
+      # declarations, so on a clean checkout there is nothing to resolve until
+      # the core has been built.
+      #
+      # Then typecheck, unit tests, and every promise the README makes: lockstep
+      # versions, zero runtime dependencies, the 40KB budget, no network or
+      # storage API in the bundle, and the licence in both tarballs.
+      - run: npm run verify
+
+  browser:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npx playwright install --with-deps chromium
+
+      # Style isolation across the shadow boundary, container queries, keyboard
+      # operability, and a request count of zero during a mount. None of these can
+      # be asserted honestly in jsdom.
+      - run: npm run test:e2e
+
+      - uses: actions/upload-artifact@v5
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: packages/embed/playwright-report/
+          retention-days: 7
