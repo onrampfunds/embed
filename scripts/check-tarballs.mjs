@@ -19,6 +19,28 @@ function packedFiles(packageDir) {
   return (parsed[0]?.files ?? []).map((entry) => entry.path);
 }
 
+/** Every file path a manifest advertises: main, module, types, the CDN aliases, and `exports`. */
+function entrypointsOf(pkg) {
+  const found = new Set();
+
+  const add = (value) => {
+    if (typeof value === 'string' && value.startsWith('./')) found.add(value.slice(2));
+    else if (typeof value === 'string' && value.startsWith('dist/')) found.add(value);
+  };
+
+  for (const key of ['main', 'module', 'types', 'unpkg', 'jsdelivr', 'browser']) add(pkg[key]);
+
+  const walk = (node) => {
+    if (typeof node === 'string') add(node);
+    else if (node !== null && typeof node === 'object') Object.values(node).forEach(walk);
+  };
+  walk(pkg.exports);
+
+  // package.json is itself an export target and is always present; it is checked separately.
+  found.delete('package.json');
+  return [...found].sort();
+}
+
 const expectations = [
   { dir: CORE, required: ['LICENSE', 'README.md', 'package.json', 'dist/index.d.ts'] },
   { dir: REACT, required: ['LICENSE', 'README.md', 'package.json'] },
@@ -40,6 +62,17 @@ for (const expectation of expectations) {
   for (const required of expectation.required) {
     report.check(`${pkg.name} ships ${required}`, files.includes(required));
   }
+
+  // Every path the manifest points at must actually be in the tarball. Derived from the manifest
+  // rather than listed here, so it keeps up when the entrypoints change — and because the failure
+  // it guards against is silent: drop `dist` from `files` and the licence checks above still pass
+  // while every consumer gets a package that cannot resolve.
+  const missing = entrypointsOf(pkg).filter((entry) => !files.includes(entry));
+  report.check(
+    `${pkg.name} ships every entrypoint its package.json declares`,
+    missing.length === 0,
+    missing.length === 0 ? entrypointsOf(pkg).join(', ') : `missing ${missing.join(', ')}`,
+  );
 
   // Nothing from the working tree should escape into a published package.
   const leaked = files.filter((file) =>
