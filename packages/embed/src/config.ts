@@ -43,8 +43,18 @@ function isObject(value: unknown): value is Record<string, unknown> {
 /** Strips control characters and clips length, so a partner string cannot deform the card. */
 function cleanText(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null;
-  // Control characters are stripped so a partner string cannot deform the card.
-  const stripped = value.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').replace(/\s+/g, ' ').trim();
+  // C0/C1 controls become spaces; bidi and zero-width formatting characters are removed.
+  //
+  // The second set matters more than it looks. partnerName is interpolated into the departure
+  // notice — "you'll leave {name}" — which is one of the card's honesty guarantees, and an RLO
+  // or an isolate can visually reorder the text around it without injecting any markup. The
+  // shadow root exists to stop a partner's stylesheet rewriting statements like that one;
+  // letting their text do it with invisible characters would leave the same hole, other door.
+  const stripped = value
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
+    .replace(/[\u061c\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
   if (stripped.length === 0) return null;
   return stripped.length > max ? `${stripped.slice(0, max - 1).trimEnd()}…` : stripped;
 }

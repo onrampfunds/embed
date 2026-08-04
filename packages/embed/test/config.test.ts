@@ -201,5 +201,33 @@ describe('normalize', () => {
       const name = ok({ ...base, partnerName: 'Car\u0007twheel\nInc' }).partnerName;
       expect(name).toBe('Car twheel Inc');
     });
+
+    it.each([
+      ['RLO', '\u202e'],
+      ['LRO', '\u202d'],
+      ['RLE', '\u202b'],
+      ['PDF', '\u202c'],
+      ['RLI', '\u2067'],
+      ['FSI', '\u2068'],
+      ['PDI', '\u2069'],
+      ['RLM', '\u200f'],
+      ['ALM', '\u061c'],
+      ['zero-width space', '\u200b'],
+      ['BOM', '\ufeff'],
+    ])('strips the %s bidi/zero-width control', (_label, control) => {
+      // partnerName lands in "you'll leave {name}", which is one of the card's honesty
+      // guarantees. These characters reorder the text around them while rendering as nothing,
+      // so they can rewrite that sentence without injecting any markup.
+      const name = ok({ ...base, partnerName: `Cart${control}wheel` }).partnerName;
+      expect(name).toBe('Cartwheel');
+      expect(name).not.toContain(control);
+    });
+
+    it('leaves legitimate non-Latin names alone', () => {
+      // The point is to strip invisible reordering controls, not to mangle real names.
+      for (const name of ['Ünïcode Cø', '\u0645\u062a\u062c\u0631', '\u30b9\u30c8\u30a2']) {
+        expect(ok({ ...base, partnerName: name }).partnerName).toBe(name);
+      }
+    });
   });
 });
