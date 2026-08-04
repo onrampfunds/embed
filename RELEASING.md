@@ -83,17 +83,27 @@ packs and verifies without publishing.
 
 ## The CDN build
 
-The release summary prints the `integrity` hash for `onramp-embed.umd.js`. Publish the bundle to
-the Onramp-controlled origin at an **immutable, version-pinned path**, and update the `v1` alias
-separately:
+Uploaded automatically by the release workflow after npm publish succeeds — npm first, so a failed
+publish never leaves an immutable, undeletable bundle for a version that does not exist.
 
 ```
-https://js.onrampfunds.com/embed/0.0.3/onramp-embed.umd.js   ← immutable, hashed, SRI-pinnable
-https://js.onrampfunds.com/embed/v1/onramp-embed.umd.js      ← mutable alias, no SRI
+embed/releases/<version>/onramp-embed.umd.js       immutable, SRI-pinnable
+embed/releases/<version>/onramp-embed.umd.js.map   sourcemap
+embed/v<major>/onramp-embed.umd.js                 moving alias
+embed/v<major>/onramp-embed.umd.js.map             sourcemap
 ```
 
-Put the hash in the GitHub release notes. Partners who pin get subresource integrity; partners who
-cannot pin get the alias and accept that it moves.
+The release summary prints the `integrity` hash and both URLs. Put the hash in the GitHub release
+notes; that is where the README tells partners to look for it.
+
+**The alias tracks the major version, so today it is `v0`, not `v1`.** Under semver a 0.x minor may
+break compatibility, which means the `v0` alias moves across breaking changes — the README says so
+and tells pre-1.0 partners to pin. It becomes a real stability promise at 1.0.
+
+**A version path can never be rewritten.** The bucket lock rule (`embed/releases/`, 365 days)
+enforces it at the storage layer, and the workflow checks before uploading so a re-run fails
+cleanly rather than being rejected halfway. If a release does half-upload, that version is spent —
+cut a new one rather than trying to repair it.
 
 ## What must never happen
 

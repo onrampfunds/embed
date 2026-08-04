@@ -21,27 +21,34 @@ npm install @onrampfunds/embed
 ```
 
 A UMD build ships in the package as `dist/onramp-embed.umd.js` and exposes `Onramp` as a global,
-so it works from a script tag today if you serve it yourself.
-
-> **The hosted CDN is not live yet.** `js.onrampfunds.com` does not exist at the time of writing —
-> npm is the supported path. The section below is the shape it will take, recorded here so the
-> release workflow and the docs agree; do not paste these URLs into a partner integration until
-> this note is gone.
-
-When it does exist, it will serve **immutable, version-pinned** paths. Pin the exact version and
-check the integrity hash, which is published in each GitHub release:
+and is also served from an Onramp-controlled origin. **Pin the exact version and check the
+integrity hash** — the hash for each release is in its GitHub release notes:
 
 ```html
 <script
-  src="https://js.onrampfunds.com/embed/0.0.3/onramp-embed.umd.js"
+  src="https://js.onrampfunds.com/embed/releases/0.0.3/onramp-embed.umd.js"
   integrity="sha384-<published with each release>"
   crossorigin="anonymous"
 ></script>
 ```
 
-A `v1` alias will also resolve to the newest 1.x build, for partners who cannot pin. It carries
-**no** integrity hash by design — you cannot have both a mutable alias and a fixed hash. Pin the
-version if you can.
+Version paths are immutable and enforced as such by the storage layer, so a pinned hash stays
+valid forever. `crossorigin="anonymous"` is required rather than optional — subresource integrity
+only applies to a cross-origin script when the request is made in CORS mode.
+
+A moving alias also exists for partners who cannot pin:
+
+```
+https://js.onrampfunds.com/embed/v0/onramp-embed.umd.js
+```
+
+It carries **no** integrity hash by design — you cannot have both a mutable alias and a fixed
+hash — and it tracks the newest release of that major version. **Before 1.0, prefer pinning.**
+Under semver, 0.x minors may carry breaking changes, so the `v0` alias moves across them; from 1.0
+onward `v1` will only ever move within backwards-compatible releases.
+
+You need no CSP change beyond allowing `js.onrampfunds.com` in `script-src`. The library still
+makes no network requests of its own.
 
 ## Use
 
