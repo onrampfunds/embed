@@ -77,14 +77,95 @@ jobs:
           npm publish --workspace @onrampfunds/embed --dry-run
           npm publish --workspace @onrampfunds/embed-react --dry-run
 
+      # Runs after npm, deliberately. If npm fails we want nothing on the CDN; the reverse order
+      # would leave an immutable, undeletable bundle for a version that was never published.
+      - name: Upload the CDN bundle to R2
+        if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
+        env:
+          # R2 speaks S3, so the AWS CLI on the runner is enough — no extra dependency.
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+
+          version="$(node -p "require('./packages/embed/package.json').version")"
+          major="${version%%.*}"
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          bucket="onramp-embed"
+          dist="packages/embed/dist"
+          release="embed/releases/${version}"
+          alias="embed/v${major}"
+
+          # Both files or neither. A version path is covered by the bucket lock, so a partial
+          # upload cannot be repaired — it can only be abandoned and a new version cut.
+          for file in onramp-embed.umd.js onramp-embed.umd.js.map; do
+            if [ ! -s "${dist}/${file}" ]; then
+              echo "::error::${dist}/${file} is missing or empty; refusing to upload a partial release"
+              exit 1
+            fi
+          done
+
+          # Fail before writing anything rather than letting the bucket lock reject it mid-upload.
+          if aws s3api head-object --endpoint-url "$endpoint" --bucket "$bucket" \
+               --key "${release}/onramp-embed.umd.js" >/dev/null 2>&1; then
+            echo "::error::${release}/ already exists and published paths are immutable. Cut a new version."
+            exit 1
+          fi
+
+          # The map goes first: if the second upload fails, an unreferenced map is inert, whereas
+          # a bundle whose sourceMappingURL 404s is a broken devtools experience for every partner.
+          #
+          # Cache-Control is set on the object as well as in the Cloudflare cache rules. The rules
+          # govern the edge; this governs the browser, and it keeps the intent readable here.
+          upload() {
+            aws s3api put-object \
+              --endpoint-url "$endpoint" --bucket "$bucket" \
+              --key "$1" --body "$2" \
+              --content-type "$3" --cache-control "$4" >/dev/null
+            echo "  uploaded $1"
+          }
+
+          immutable="public, max-age=31536000, immutable"
+          revalidate="public, max-age=300, must-revalidate"
+
+          echo "Publishing ${version} to ${bucket}:"
+          upload "${release}/onramp-embed.umd.js.map" "${dist}/onramp-embed.umd.js.map" \
+            "application/json; charset=utf-8" "$immutable"
+          upload "${release}/onramp-embed.umd.js" "${dist}/onramp-embed.umd.js" \
+            "text/javascript; charset=utf-8" "$immutable"
+
+          # The alias is overwritten every release, which is why the bucket lock prefix stops at
+          # embed/releases/. The map ships here too: sourceMappingURL is relative, so it resolves
+          # against whichever directory the script was loaded from.
+          upload "${alias}/onramp-embed.umd.js.map" "${dist}/onramp-embed.umd.js.map" \
+            "application/json; charset=utf-8" "$revalidate"
+          upload "${alias}/onramp-embed.umd.js" "${dist}/onramp-embed.umd.js" \
+            "text/javascript; charset=utf-8" "$revalidate"
+
+          {
+            echo "CDN_VERSION=${version}"
+            echo "CDN_ALIAS=v${major}"
+          } >> "$GITHUB_ENV"
+
       - name: Record the CDN integrity hash
         if: ${{ github.event_name == 'push' || inputs.dry-run != true }}
         run: |
+          set -euo pipefail
           hash="sha384-$(openssl dgst -sha384 -binary packages/embed/dist/onramp-embed.umd.js | openssl base64 -A)"
-          echo "### Subresource integrity" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo '```html' >> "$GITHUB_STEP_SUMMARY"
-          echo "<script src=\"https://js.onrampfunds.com/embed/${GITHUB_REF_NAME#v}/onramp-embed.umd.js\"" >> "$GITHUB_STEP_SUMMARY"
-          echo "        integrity=\"$hash\"" >> "$GITHUB_STEP_SUMMARY"
-          echo '        crossorigin="anonymous"></script>' >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Subresource integrity"
+            echo ""
+            echo '```html'
+            echo "<script src=\"https://js.onrampfunds.com/embed/releases/${CDN_VERSION}/onramp-embed.umd.js\""
+            echo "        integrity=\"$hash\""
+            echo '        crossorigin="anonymous"></script>'
+            echo '```'
+            echo ""
+            echo "Unpinned alias (no integrity, moves with every ${CDN_ALIAS}.x release):"
+            echo ""
+            echo '```'
+            echo "https://js.onrampfunds.com/embed/${CDN_ALIAS}/onramp-embed.umd.js"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
