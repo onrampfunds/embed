@@ -92,6 +92,18 @@ export function resolveTheme(theme: ThemeTokens | undefined): ResolvedTheme {
       parsed[key] = parseColor(DEFAULT_TOKENS[key]) ?? undefined;
       continue;
     }
+    if (color.a < 1) {
+      // A translucent token renders against the partner's page, which is outside the shadow root
+      // and unknowable from here — so the contrast guard could not honestly certify it. Since the
+      // guard is the thing standing between a partner's palette and an illegible disclosure, a
+      // token it cannot measure is refused rather than waved through.
+      warnings.push(
+        `theme.${key}: ${JSON.stringify(supplied)} is not opaque; using the Onramp default. ` +
+          'Contrast cannot be verified against a colour that depends on the page behind the card.',
+      );
+      parsed[key] = parseColor(DEFAULT_TOKENS[key]) ?? undefined;
+      continue;
+    }
     // Re-serialised rather than echoed — see `toCssColor`.
     tokens[key] = toCssColor(color);
     parsed[key] = color;

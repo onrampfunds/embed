@@ -34,6 +34,25 @@ describe('resolveTheme', () => {
     expect(theme.warnings.join(' ')).toContain('theme.accent');
   });
 
+  it.each([
+    ['rgba', 'rgba(255, 255, 255, 0.5)'],
+    ['hex with alpha', '#ffffff80'],
+    ['transparent', 'transparent'],
+  ])('refuses a %s token, because contrast cannot be verified against it', (_label, value) => {
+    // A translucent token renders against the partner's page, which is outside the shadow root
+    // and unknowable — so the guard would be certifying a colour it cannot actually see.
+    const theme = resolveTheme({ surface: value });
+    expect(theme.tokens.surface).toBe(DEFAULT_TOKENS.surface);
+    expect(theme.warnings.join(' ')).toContain('not opaque');
+  });
+
+  it('keeps the guard honest: every measured pairing is opaque', () => {
+    const theme = resolveTheme({ surface: 'rgba(0, 0, 0, 0.2)', text: '#ffffff' });
+    // The translucent surface was replaced, so the ratios describe what will actually render.
+    expect(theme.tokens.surface).toBe(DEFAULT_TOKENS.surface);
+    expect(theme.ratios['text/surface']).toBeGreaterThan(0);
+  });
+
   it('rejects a radius that is not a length', () => {
     expect(resolveTheme({ radius: 'calc(100% - 2px)' }).tokens.radius).toBe(DEFAULT_TOKENS.radius);
     expect(resolveTheme({ radius: -4 }).tokens.radius).toBe(DEFAULT_TOKENS.radius);

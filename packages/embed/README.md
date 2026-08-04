@@ -135,9 +135,15 @@ Seven tokens, plus the optional `partnerName`. That is the whole surface.
 | `radius` | Card corner. A number is pixels. Inner elements derive from it, so `0` stays square and `24` stays coherent. |
 | `fontStack` | Set at the root and inherited. Also accepts `font`, and the keywords `system`, `sans`, `serif`, `mono`. |
 
-**Colours** accept hex, `rgb()`, `hsl()`, `oklab()`, `oklch()`, and common named colours. A value
-the library cannot parse is replaced with the Onramp default and the reason is logged — we would
-rather render a legible card in the wrong brand than an illegible one in the right brand.
+**Colours** accept hex, `rgb()`, `hsl()`, `oklab()`, `oklch()`, and common named colours, and
+**must be opaque**. A value the library cannot parse — or one carrying alpha — is replaced with the
+Onramp default and the reason is logged. We would rather render a legible card in the wrong brand
+than an illegible one in the right brand.
+
+Alpha is refused rather than approximated because a translucent token renders against your page,
+which is outside the shadow root and unknowable from inside it. The contrast guard below would be
+certifying a colour it cannot actually see. If you want a tinted surface, pass the resolved opaque
+colour.
 
 ### The contrast guard
 

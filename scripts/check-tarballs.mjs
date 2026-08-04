@@ -30,7 +30,10 @@ for (const expectation of expectations) {
   try {
     files = packedFiles(expectation.dir);
   } catch (error) {
-    report.check(`${pkg.name} packs`, false, error.message.split('\n')[0]);
+    // `execFileSync` can throw something without a usable `.message`, and letting this line throw
+    // would hide the packing failure it is meant to report.
+    const detail = String(error?.message ?? error ?? 'unknown error').split('\n')[0];
+    report.check(`${pkg.name} packs`, false, detail);
     continue;
   }
 
