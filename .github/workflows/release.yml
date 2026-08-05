@@ -16,6 +16,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  # contents/pull-requests are for the version PR the bot opens; id-token is for npm.
   contents: write
   pull-requests: write
   # Trusted publishing: the workflow proves its own identity to npm over OIDC, so there is no
@@ -27,9 +28,56 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Version or publish
+  # Split deliberately. The environment gate exists to protect an irreversible publish to a public
+  # registry — not to sit in front of a bot opening a version PR. With one job, every push to main
+  # would wait for a human before the version PR could even appear, which is friction on the wrong
+  # step and trains people to click approve without reading.
+  pending:
+    name: Any changesets waiting?
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has-changesets: ${{ steps.check.outputs.has-changesets }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: check
+        run: |
+          set -euo pipefail
+          # Every .md in .changeset is a pending bump except the README the CLI ships.
+          count="$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')"
+          echo "has-changesets=$([ "$count" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "$count changeset(s) pending"
+
+  version:
+    name: Open the version PR
+    needs: pending
+    if: needs.pending.outputs.has-changesets == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # No environment: nothing is published here, only a PR opened.
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: changesets/action@v1
+        with:
+          version: npm run version
+          title: 'Release: version packages'
+          commit: 'Version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    name: Publish
+    needs: pending
+    if: needs.pending.outputs.has-changesets == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: npm-publish
     steps:
       - uses: actions/checkout@v5
@@ -57,12 +105,9 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          # Performs the bump and opens the PR. `npm run verify` runs inside `release`, so nothing
-          # publishes without the full suite and every guard passing.
-          version: npm run version
+          # Publish only. `npm run verify` runs inside `release`, so nothing reaches the registry
+          # without the full suite and every guard passing.
           publish: npm run release
-          title: 'Release: version packages'
-          commit: 'Version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
