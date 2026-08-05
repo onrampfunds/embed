@@ -28,10 +28,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Split deliberately. The environment gate exists to protect an irreversible publish to a public
-  # registry — not to sit in front of a bot opening a version PR. With one job, every push to main
-  # would wait for a human before the version PR could even appear, which is friction on the wrong
-  # step and trains people to click approve without reading.
+  # Kept separate from the gated job so an ordinary push to main — the overwhelming majority —
+  # costs nothing and prompts nobody. Only a push that actually has a release waiting reaches the
+  # environment gate.
   pending:
     name: Any changesets waiting?
     runs-on: ubuntu-latest
@@ -48,34 +47,10 @@ jobs:
           echo "has-changesets=$([ "$count" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "$count changeset(s) pending"
 
-  version:
-    name: Open the version PR
+  release:
+    name: Version and publish
     needs: pending
     if: needs.pending.outputs.has-changesets == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # No environment: nothing is published here, only a PR opened.
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - uses: changesets/action@v1
-        with:
-          version: npm run version
-          title: 'Release: version packages'
-          commit: 'Version packages'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish:
-    name: Publish
-    needs: pending
-    if: needs.pending.outputs.has-changesets == 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: npm-publish
@@ -101,7 +76,33 @@ jobs:
 
       - run: npm ci
 
-      - name: Version or publish
+      # The bump is committed straight to main rather than raised as a PR.
+      #
+      # Opening a PR needs "Allow GitHub Actions to create and approve pull requests", which org
+      # policy disables. The alternatives are worse: a PAT or a GitHub App private key would
+      # reintroduce exactly the long-lived credential this pipeline avoids everywhere else, purely
+      # to open a mechanical PR.
+      #
+      # Little is lost. The bump is mechanical and check:versions guards it, the changelog is
+      # generated from changesets already reviewed in their own PRs, and the environment approval
+      # on this job still puts a human in front of anything reaching the registry.
+      #
+      # The resulting push re-triggers this workflow, finds no pending changesets, and stops at
+      # the `pending` job — so there is no loop and no spurious approval prompt.
+      - name: Version
+        run: |
+          set -euo pipefail
+          npm run version
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Version packages"
+          # Rebase in case main moved while this ran. Releases are infrequent enough that a
+          # conflict here means something needs a human anyway.
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Publish
         id: changesets
         uses: changesets/action@v1
         with:

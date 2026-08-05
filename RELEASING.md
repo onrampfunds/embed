@@ -65,15 +65,25 @@ the README makes to partners, enforced by tooling rather than by discipline.
 
 ### Then it releases itself
 
-When your PR lands on `main`, the release workflow opens a **"Release: version packages"** PR that
-performs the entire bump: both manifests, the wrapper's exact pin on the core, the two exported
-version literals, and the private root manifest. Review it, merge it, approve the `npm-publish`
-environment, and it publishes both packages and uploads the CDN bundle.
+When your PR lands on `main`, the release workflow sees a pending changeset, asks for approval on
+the `npm-publish` environment, and on approval performs the entire bump — both manifests, the
+wrapper's exact pin on the core, the two exported version literals, and the private root — commits
+it to `main`, publishes both packages, and uploads the CDN bundle.
 
-**Merging the version PR is the release.** There is no tag to push and no version to type, which
-is deliberate: every release before this one needed a manual six-file edit, `check:versions` caught
-a missed file on *every* one of them, and a `v0.0.5` tag once reached a `main` still on `0.0.4`
-because the bump lived in a different PR from the change that required it.
+**Approving the environment is the release.** There is no tag to push and no version to type,
+which is deliberate: every release before this needed a manual six-file edit, `check:versions`
+caught a missed file on *every* one of them, and a `v0.0.5` tag once reached a `main` still on
+`0.0.4` because the bump lived in a different PR from the change that required it.
+
+The version commit lands directly on `main` rather than as a PR. Opening one requires *"Allow
+GitHub Actions to create and approve pull requests"*, which org policy disables — and a PAT or
+GitHub App key to work around it would reintroduce exactly the long-lived credential this pipeline
+avoids everywhere else, purely to open a mechanical PR. The bump is guarded by `check:versions`,
+the changelog comes from changesets already reviewed in their own PRs, and the approval gate still
+puts a human in front of the registry.
+
+That commit re-triggers the workflow, which finds nothing pending and stops immediately. No loop,
+no second prompt.
 
 `check:versions` still runs. It is the backstop now rather than the mechanism.
 
