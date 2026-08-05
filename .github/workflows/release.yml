@@ -8,8 +8,8 @@ name: Release
 # version literals, and the private root — committed straight to main, then the publish.
 #
 # The bump is a commit rather than a PR because opening one needs a permission org policy disables;
-# the Version step explains why every alternative is worse. That commit's push re-triggers this
-# workflow, which finds nothing pending and stops at the `pending` job.
+# the Version step explains why every alternative is worse. That commit's push starts no workflow
+# run at all, so there is no second pass and no loop.
 #
 # The version can therefore never disagree with the thing being released, which is how a v0.0.5
 # tag once arrived at a main still on 0.0.4.
@@ -90,8 +90,15 @@ jobs:
       # generated from changesets already reviewed in their own PRs, and the environment approval
       # on this job still puts a human in front of anything reaching the registry.
       #
-      # The resulting push re-triggers this workflow, finds no pending changesets, and stops at
-      # the `pending` job — so there is no loop and no spurious approval prompt.
+      # The resulting push starts no workflow run whatsoever — GITHUB_TOKEN pushes never do, which
+      # is GitHub's own loop prevention rather than anything arranged here. So there is no loop and
+      # no spurious approval prompt, and note that the `pending` job's changeset check is not what
+      # stops it: nothing gets far enough to run that check.
+      #
+      # The corollary is worth knowing. This commit lands on main with no CI run of its own, so
+      # main's tip after a release is a commit no workflow has checked. Safe, because `npm run
+      # verify` runs inside `release` below and nothing reaches the registry without it — but it is
+      # why a green tick never appears against "Version packages".
       - name: Version
         run: |
           set -euo pipefail
