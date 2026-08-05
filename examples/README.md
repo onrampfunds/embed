@@ -45,3 +45,9 @@ node --version   # nothing to run; these are read-and-copy files
 [`react/`](react/) — a Next.js App Router dashboard in two files: a server component that fetches
 with the partner's credential, and a client component that renders the card or decides what fills
 the slot instead. See [its README](react/README.md) for the three things worth knowing.
+
+## Any other language
+
+The browser half is fixed; the server half is ordinary code in whatever you already write.
+[`INTEGRATING.md`](../INTEGRATING.md) covers it language-agnostically, including the JSON
+escaping that catches everyone, and is written to be handed to a coding agent wholesale.

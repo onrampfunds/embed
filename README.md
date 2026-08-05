@@ -86,6 +86,10 @@ Onramp.mount('#capital', {
 
 Full API, token reference, and copy contract: [`packages/embed/README.md`](packages/embed/README.md).
 
+**Writing the server half?** [`INTEGRATING.md`](INTEGRATING.md) covers it language-agnostically —
+the backend is ordinary code in whatever you already write, and the guide is written to be handed
+to a coding agent wholesale.
+
 ## What it guarantees
 
 - **Zero runtime dependencies** and **zero network requests**, both asserted in CI.
