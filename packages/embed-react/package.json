@@ -1,7 +1,7 @@
 {
   "name": "@onrampfunds/embed-react",
-  "version": "0.0.5",
-  "description": "React wrapper for @onrampfunds/embed. Placeholder release \u2014 the component lands in CTO-344.",
+  "version": "0.0.6",
+  "description": "React wrapper for @onrampfunds/embed. Placeholder release — the component lands in CTO-344.",
   "license": "MIT",
   "author": "Onramp Funds",
   "homepage": "https://github.com/onrampfunds/embed/tree/main/packages/embed-react#readme",
@@ -51,7 +51,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@onrampfunds/embed": "0.0.5"
+    "@onrampfunds/embed": "0.0.6"
   },
   "peerDependencies": {
     "react": ">=18"
