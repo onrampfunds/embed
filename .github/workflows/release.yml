@@ -3,10 +3,13 @@ name: Release
 # Driven by Changesets, not by hand-pushed tags.
 #
 # A PR that changes behaviour carries a changeset describing its bump. When it lands here, this
-# workflow finds the pending changesets and opens a "Version Packages" PR that performs the whole
-# bump — both manifests, the wrapper's exact pin on the core, the two exported version literals,
-# and the private root. Merging *that* PR runs this workflow again, finds nothing pending, and
-# publishes.
+# workflow finds the pending changesets and, behind the npm-publish approval, does the whole thing
+# in one run: the bump — both manifests, the wrapper's exact pin on the core, the two exported
+# version literals, and the private root — committed straight to main, then the publish.
+#
+# The bump is a commit rather than a PR because opening one needs a permission org policy disables;
+# the Version step explains why every alternative is worse. That commit's push re-triggers this
+# workflow, which finds nothing pending and stops at the `pending` job.
 #
 # The version can therefore never disagree with the thing being released, which is how a v0.0.5
 # tag once arrived at a main still on 0.0.4.
