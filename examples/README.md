@@ -38,18 +38,10 @@ Importing `@onrampfunds/embed` on the server is inert, so it is safe in a shared
 
 ## React
 
-Use [`@onrampfunds/embed-react`](../packages/embed-react):
-
-```tsx
-import { OnrampPrequalification } from '@onrampfunds/embed-react';
-
-<OnrampPrequalification
-  {...prequalification}
-  onEvent={(name, meta) => analytics.track(`onramp:${name}`, meta)}
-/>
+```sh
+node --version   # nothing to run; these are read-and-copy files
 ```
 
-The props are the core's mount config. The wrapper exists to get two things right that a
-hand-rolled `useEffect` usually does not: an inline `onEvent` must not remount the card, and
-strict mode's double-invoked effects must not produce two shadow roots. See
-[its README](../packages/embed-react/README.md).
+[`react/`](react/) — a Next.js App Router dashboard in two files: a server component that fetches
+with the partner's credential, and a client component that renders the card or decides what fills
+the slot instead. See [its README](react/README.md) for the three things worth knowing.
