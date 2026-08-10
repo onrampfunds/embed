@@ -1,7 +1,7 @@
 import { LOG_PREFIX, VERSION } from './constants';
 import { isExpectedApplyHost, normalize } from './config';
 import { resolveCopy } from './copy';
-import { formatAmount, formatDate } from './format';
+import { formatAmount } from './format';
 import { attachStyles, renderCard } from './render';
 import { resolveTheme, warn } from './theme';
 import type { CardState, EmbedEvent, MountConfig, MountHandle } from './types';
@@ -131,7 +131,7 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     clearPrevious(container);
 
     const emit = emitter(raw);
-    const result = normalize(raw, new Date());
+    const result = normalize(raw);
 
     if (!result.ok) {
       // Never a broken card in production: log it, render nothing.
@@ -149,9 +149,6 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     const theme = resolveTheme(config.theme);
     for (const message of theme.warnings) warn(message);
 
-    const validUntilLabel =
-      config.validUntil !== null ? formatDate(config.validUntil, config.locale) : null;
-
     // The card names the destination it was actually handed. An unexpected host is the partner's
     // integration being wrong, not grounds to refuse — but they should hear about it, because a
     // card carrying Onramp's attribution row should not be sending merchants somewhere else.
@@ -165,8 +162,6 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
 
     const copy = resolveCopy({
       copy: config.copy,
-      expired: config.state === 'expired',
-      validUntil: validUntilLabel,
       partnerName: config.partnerName,
       applyHost: config.applyHost,
     });
@@ -204,9 +199,7 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
       detach = () => cta.removeEventListener('click', onClick);
     }
 
-    if (config.state === 'expired') {
-      emit('expired', { lexicon: config.lexicon });
-    } else if (config.state === 'prequalified') {
+    if (config.state === 'prequalified') {
       emit('view', {
         amount: config.amount,
         currency: config.currency,

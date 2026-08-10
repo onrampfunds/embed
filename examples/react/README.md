@@ -22,8 +22,8 @@ identity on every parent render does not tear down and rebuild the shadow root â
 keyed on a value-based signature of the config, and callbacks are read through a ref at call time.
 Hand-rolling this with `useEffect` is exactly where it goes wrong.
 
-**Forward the response whole.** `amount`, `currency`, `validUntil`, `applyUrl`, `lexicon`, `copy`
-and `theme` all come from the prequalification endpoint. Spread it rather than picking fields out
+**Forward the response whole.** `amount`, `currency`, `applyUrl`, `lexicon`, `copy` and `theme`
+all come from the prequalification endpoint. Spread it rather than picking fields out
 of it â€” and note `copy` carries the regulated strings and is **required**. Without it the card
 renders nothing, deliberately, rather than falling back to wording compliance cannot revise.
 

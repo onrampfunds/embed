@@ -1,13 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { normalize } from '../src/config';
 
-const NOW = new Date('2026-08-03T00:00:00Z');
-
 const COPY = {
   qualifier: 'Pre-qualified, not approved.',
   mechanism: 'Repaid as a share of your daily sales.',
   disclosure: 'Not an offer of credit. Subject to review prior to approval.',
-  expiredDisclosure: 'Not an offer of credit. This estimate has expired.',
 };
 
 const base = {
@@ -19,13 +16,13 @@ const base = {
 };
 
 const ok = (raw: unknown) => {
-  const result = normalize(raw, NOW);
+  const result = normalize(raw);
   if (!result.ok) throw new Error(`expected a valid config, got: ${result.reason}`);
   return result.config;
 };
 
 const rejected = (raw: unknown): string => {
-  const result = normalize(raw, NOW);
+  const result = normalize(raw);
   if (result.ok) throw new Error(`expected a rejection, got state ${result.config.state}`);
   return result.reason;
 };
@@ -35,7 +32,6 @@ describe('normalize', () => {
     const config = ok({
       amount: 40000,
       currency: 'USD',
-      validUntil: '2026-08-06T07:00:00Z',
       applyUrl: 'https://onrampfunds.com/p/abc123',
       lexicon: 'loan',
       // The ticket's snippet writes this as `copy: { /* served strings */ }`. The strings are
@@ -59,26 +55,6 @@ describe('normalize', () => {
 
     it('does not require an applyUrl, so the partner is not forced to invent one', () => {
       expect(ok({ amount: null }).state).toBe('none');
-    });
-  });
-
-  describe('the expired state', () => {
-    it('is chosen once validUntil has passed', () => {
-      const config = ok({ ...base, validUntil: '2026-08-01T00:00:00Z' });
-      expect(config.state).toBe('expired');
-    });
-
-    it('strips the amount, so a stale figure cannot reach the DOM at all', () => {
-      const config = ok({ ...base, validUntil: '2026-08-01T00:00:00Z' });
-      expect(config.amount).toBeNull();
-    });
-
-    it('treats the exact expiry instant as expired', () => {
-      expect(ok({ ...base, validUntil: NOW.toISOString() }).state).toBe('expired');
-    });
-
-    it('stays prequalified while the expiry is in the future', () => {
-      expect(ok({ ...base, validUntil: '2026-08-06T07:00:00Z' }).state).toBe('prequalified');
     });
   });
 
@@ -130,7 +106,7 @@ describe('normalize', () => {
     ])('still accepts %s carrying the right fields', (_label, value) => {
       // Deliberately not a prototype comparison: config arriving from another realm, from a
       // null-prototype object, or from a class instance is all legitimate.
-      const result = normalize({ ...base, ...value }, NOW);
+      const result = normalize({ ...base, ...value });
       expect(result.ok).toBe(true);
     });
 
@@ -146,41 +122,6 @@ describe('normalize', () => {
       expect(rejected({ ...base, amount: -1 })).toContain('amount');
       expect(rejected({ ...base, amount: Number.NaN })).toContain('amount');
       expect(rejected({ ...base, amount: Number.POSITIVE_INFINITY })).toContain('amount');
-    });
-
-    it('rejects an unparseable expiry instead of silently showing a live card', () => {
-      expect(rejected({ ...base, validUntil: 'next tuesday' })).toContain('validUntil');
-      expect(rejected({ ...base, validUntil: 12345 })).toContain('validUntil');
-    });
-
-    it.each([
-      ['a US-style date', '08/06/2026'],
-      ['a slashed date', '2026/08/06'],
-      ['a spelled-out date', 'March 5 2027'],
-      ['a toString-style date', 'Sat Aug 06 2026'],
-      ['a datetime with no offset', '2026-08-06T07:00:00'],
-    ])('rejects %s, which new Date() would have accepted', (_label, value) => {
-      // All of these parse in V8, and what any given engine accepts is not specified. The one
-      // without an offset is the dangerous one: it reads as local time, so the same string is a
-      // different instant per merchant — for a value deciding whether a figure is shown, that
-      // difference is not carryable.
-      expect(Number.isNaN(new Date(value as string).getTime())).toBe(false);
-      expect(rejected({ ...base, validUntil: value })).toContain('validUntil');
-    });
-
-    it.each([
-      ['UTC', '2026-08-06T07:00:00Z'],
-      ['a positive offset', '2026-08-06T07:00:00+02:00'],
-      ['a negative offset', '2026-08-06T07:00:00-05:00'],
-      ['milliseconds', '2026-08-06T07:00:00.250Z'],
-      ['minutes only', '2026-08-06T07:00Z'],
-      ['a bare date', '2026-08-06'],
-    ])('accepts %s', (_label, value) => {
-      expect(ok({ ...base, validUntil: value }).validUntil).toBeInstanceOf(Date);
-    });
-
-    it('rejects a well-shaped string that is not a real date', () => {
-      expect(rejected({ ...base, validUntil: '2026-13-45' })).toContain('validUntil');
     });
 
     it('rejects a bad currency code', () => {
@@ -253,26 +194,10 @@ describe('normalize', () => {
     });
 
     it('names every missing string at once, not just the first', () => {
-      const reason = rejected({ ...base, copy: { expiredDisclosure: COPY.expiredDisclosure } });
+      const reason = rejected({ ...base, copy: {} });
       for (const key of ['qualifier', 'mechanism', 'disclosure']) {
         expect(reason).toContain(`copy.${key}`);
       }
-    });
-
-    it('requires only the expired disclosure for an expired card', () => {
-      // The expired card shows neither a figure nor a mechanism line, so requiring the strings it
-      // does not render would reject payloads that are perfectly correct.
-      const config = ok({
-        ...base,
-        validUntil: '2026-08-01T00:00:00Z',
-        copy: { expiredDisclosure: COPY.expiredDisclosure },
-      });
-      expect(config.state).toBe('expired');
-    });
-
-    it('refuses an expired card missing its expired disclosure', () => {
-      const reason = rejected({ ...base, validUntil: '2026-08-01T00:00:00Z', copy: { ...COPY, expiredDisclosure: '' } });
-      expect(reason).toContain('copy.expiredDisclosure');
     });
 
     it('requires no copy for the states that render none', () => {

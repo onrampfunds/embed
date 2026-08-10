@@ -14,7 +14,7 @@ open examples/plain-html/index.html
 ```
 
 No server, no build step, no framework. A partner dashboard with the card in the sidebar, and
-buttons to switch between every state: prequalified, expired, no amount, mounting, asset-purchase
+buttons to switch between every state: prequalified, no amount, mounting, asset-purchase
 copy, a dark token set, and a token set that fails contrast so you can watch the guard correct it.
 
 Open the console for the `onEvent` stream and the contrast warnings.

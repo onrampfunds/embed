@@ -10,7 +10,6 @@ export interface NormalizedConfig {
   applyHost: string | null;
   partnerName: string | null;
   locale: string | undefined;
-  validUntil: Date | null;
   copy: ServedCopy | undefined;
   theme: ThemeTokens | undefined;
   onEvent: MountConfig['onEvent'];
@@ -22,20 +21,6 @@ export type NormalizeResult =
 
 const LEXICONS: readonly string[] = ['loan', 'mca'];
 const CURRENCY = /^[A-Za-z]{3}$/;
-
-/**
- * ISO 8601, checked before parsing rather than trusting `new Date`.
- *
- * `new Date` accepts a great deal more than ISO, and what exactly is engine-dependent —
- * `'March 5 2027'`, `'08/06/2026'` and `'2026/08/06'` all parse in V8. Worse, a datetime with no
- * zone (`'2026-08-06T07:00:00'`) is read as *local* time, so the same string is a different
- * instant for merchants in different timezones. For a value that decides whether a figure is
- * shown or withheld, that is not a difference we can carry.
- *
- * So: a date, or a datetime carrying an explicit offset. Both are unambiguous, and the endpoint
- * returns the latter.
- */
-const ISO_8601 = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2}))?$/;
 
 /**
  * A config-shaped object.
@@ -80,16 +65,8 @@ export function servedString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-/**
- * Which regulated strings each rendered state actually shows.
- *
- * The expired card carries no qualifier and no mechanism line — both are removed with the amount,
- * because a stale rate is the same compliance problem as a stale figure — so requiring them there
- * would reject payloads that are perfectly correct.
- */
-function requiredCopy(expired: boolean): (keyof ServedCopy)[] {
-  return expired ? ['expiredDisclosure'] : ['qualifier', 'mechanism', 'disclosure'];
-}
+/** The regulated strings the prequalified card shows. */
+const REQUIRED_COPY: readonly (keyof ServedCopy)[] = ['qualifier', 'mechanism', 'disclosure'];
 
 /** `URL.hostname` keeps the brackets on an IPv6 host, so `[::1]` is the value to compare. */
 function isLoopback(hostname: string): boolean {
@@ -144,7 +121,7 @@ function normalizeApplyUrl(value: unknown): URL | null {
  * Turns whatever the partner passed into something the renderer can trust, or explains why it
  * cannot. A malformed config renders nothing at all — never a broken card in production.
  */
-export function normalize(raw: unknown, now: Date): NormalizeResult {
+export function normalize(raw: unknown): NormalizeResult {
   if (!isObject(raw)) {
     return { ok: false, reason: 'config must be an object' };
   }
@@ -167,30 +144,11 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
     lexicon = config.lexicon;
   }
 
-  let validUntil: Date | null = null;
-  if (config.validUntil !== undefined && config.validUntil !== null) {
-    if (typeof config.validUntil !== 'string' || !ISO_8601.test(config.validUntil.trim())) {
-      return {
-        ok: false,
-        reason:
-          `validUntil must be an ISO 8601 date or a datetime with an explicit offset, got ` +
-          `${JSON.stringify(config.validUntil)}`,
-      };
-    }
-    const parsed = new Date(config.validUntil.trim());
-    // The pattern admits shapes the calendar does not, like 2026-13-45.
-    if (Number.isNaN(parsed.getTime())) {
-      return { ok: false, reason: `validUntil is not a real date: ${JSON.stringify(config.validUntil)}` };
-    }
-    validUntil = parsed;
-  }
-
   const base = {
     currency: 'USD',
     lexicon,
     partnerName,
     locale,
-    validUntil,
     copy,
     theme,
     onEvent,
@@ -235,8 +193,6 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
     };
   }
 
-  const expired = validUntil !== null && validUntil.getTime() <= now.getTime();
-
   // The regulated strings are required, not defaulted.
   //
   // The package used to carry a baked fallback for each one. That was the wrong shape: a fallback
@@ -248,7 +204,7 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
   // Refusing renders nothing at all, which satisfies "a card must never reach a merchant without
   // its disclosure" more completely than a fallback did — there is no amount either — and matches
   // how `lexicon` is already handled.
-  const missing = requiredCopy(expired).filter(
+  const missing = REQUIRED_COPY.filter(
     (key) => servedString(copy?.[key]) === null,
   );
   if (missing.length > 0) {
@@ -256,7 +212,7 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
       ok: false,
       reason:
         `copy.${missing.join(', copy.')} ${missing.length === 1 ? 'is' : 'are'} required for the ` +
-        `${expired ? 'expired' : 'prequalified'} card and must be non-empty. ` +
+        'prequalified card and must be non-empty. ' +
         'Pass the copy block from the prequalification response unchanged.',
     };
   }
@@ -268,9 +224,8 @@ export function normalize(raw: unknown, now: Date): NormalizeResult {
       currency,
       applyUrl: applyUrl.href,
       applyHost: applyUrl.hostname,
-      state: expired ? 'expired' : 'prequalified',
-      // An expired card must not carry the figure anywhere, including in the DOM.
-      amount: expired ? null : config.amount,
+      state: 'prequalified',
+      amount: config.amount,
     },
   };
 }

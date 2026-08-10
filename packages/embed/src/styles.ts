@@ -148,21 +148,6 @@ export const BASE_CSS = `
   color: ${muted(MIX.mechanism)};
 }
 
-.expired { display: flex; flex-direction: column; gap: clamp(10px, 3cqi, 14px); }
-.expired__title {
-  margin: 0;
-  font-size: clamp(17px, 5.2cqi, 24px);
-  line-height: 1.25;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.expired__reason {
-  margin: 0;
-  font-size: clamp(13px, 3.6cqi, 15.5px);
-  line-height: 1.5;
-  color: ${muted(MIX.expiredReason)};
-}
-
 .action { display: flex; flex-direction: column; gap: 7px; }
 .cta {
   display: flex;

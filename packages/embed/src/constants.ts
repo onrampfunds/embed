@@ -48,8 +48,6 @@ export const MIX = {
   disclosure: 66,
   /** Disclosure footer fill. */
   disclosureFill: 3.5,
-  /** Expired reason line. */
-  expiredReason: 72,
   /** Mechanism line. */
   mechanism: 80,
   /** Qualifier band fill. */

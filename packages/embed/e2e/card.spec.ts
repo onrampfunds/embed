@@ -385,15 +385,6 @@ test.describe('the click', () => {
 });
 
 test.describe('states', () => {
-  test('the expired card carries no figure anywhere in the tree', async ({ page }) => {
-    await loadPartnerPage(page);
-    await mountCard(page, { ...CONFIG, validUntil: '2020-01-01T00:00:00Z' });
-
-    const html = await page.evaluate(() => window.__roots[0]?.innerHTML ?? '');
-    expect(html).not.toContain('40,000');
-    expect(html).toContain('out of date');
-  });
-
   test('no amount renders nothing and yields the slot', async ({ page }) => {
     await loadPartnerPage(page);
     await mountCard(page, { ...CONFIG, amount: null });

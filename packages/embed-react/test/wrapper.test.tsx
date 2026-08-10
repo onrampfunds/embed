@@ -235,12 +235,5 @@ describe('OnrampPrequalification', () => {
       expect(harness.hosts()).toHaveLength(1);
       expect(harness.text('.amount__figure')).toBe('$40,000');
     });
-
-    it('renders the expired card without a figure', () => {
-      harness = mountHarness();
-      harness.render(<OnrampPrequalification {...validConfig({ validUntil: '2020-01-01T00:00:00Z' })} />);
-      expect(harness.text('.expired__title')).toBe('This estimate is out of date.');
-      expect(harness.hosts()[0]?.shadowRoot?.innerHTML).not.toContain('40,000');
-    });
   });
 });

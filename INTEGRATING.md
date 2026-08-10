@@ -25,28 +25,46 @@ there is nothing to secure in the browser.
 
 ## Step 1 — Server: fetch the prequalification
 
-> **Confirm the specifics against the partner API documentation before writing this.** The route,
-> authentication scheme, and exact field names are defined by the API, not by this package, and
-> this repository is not their source of truth. What follows is the shape; the names may differ.
+> The endpoint is defined by the
+> [partner API](https://github.com/onrampfunds/onramp-partner-api), not by this package — confirm
+> against it if anything below seems out of date.
 
-You send a merchant identifier, the merchant's **state**, and aggregate sales. You get back an
-amount, a product lexicon, an apply URL, the regulated copy, and any stored theme.
+You send the merchant's **email**, their **operating state**, and their platform sales. You get
+back an amount, a product lexicon, an apply URL, the regulated copy, and any stored theme — in
+`camelCase`, shaped to forward straight into `mount()`.
 
-The merchant's state is **required** and load-bearing: it decides which product applies, and
-therefore which vocabulary is legally correct. A state Onramp does not operate in comes back with
-no amount.
+The state is **required** and load-bearing: it decides which product applies, and therefore which
+vocabulary is legally correct. A state Onramp does not operate in comes back with no amount.
 
 ```
-POST   <partner API base>/prequalifications
-Auth   your partner credential — server-side only, never in the browser
-Body   merchant identifier, state, aggregate sales
+POST   https://app.onrampfunds.com/partners/api/tokens
+Body   { "client_id": ..., "client_secret": ... }   →   { "token": <JWT> }
+
+GET    https://app.onrampfunds.com/partners/api/embed/prequalifications
+Auth   Authorization: Bearer <JWT> — server-side only, never in the browser
+Query  seller_email, operating_state, platforms[], optional business_name
 ```
 
-**Handle failure by rendering the page without the card.** A merchant's dashboard should not break
-because a financing panel is unavailable.
+The `platforms` parameter uses Rails bracket notation, repeated once per platform — **not**
+indexed (`platforms[0][...]` is rejected):
 
-**Caching is your call, with one constraint:** never cache past `validUntil`. Onramp counts each
-call as an impression, so caching trades reporting granularity for latency — choose deliberately.
+```
+?seller_email=merchant%40example.com
+&operating_state=TX
+&platforms[][type]=shopify
+&platforms[][seller_id]=seller-1
+&platforms[][sales][90_days]=45000.0
+```
+
+**A `200` with `amount: null` is a success, not an error** — it means the merchant cannot be
+served. A `422` is an integration error, never a decline. **Handle failure by rendering the page
+without the card.** A merchant's dashboard should not break because a financing panel is
+unavailable.
+
+**Do not cache the response.** It is served `Cache-Control: no-store`: the body holds a
+merchant-specific amount and regulated copy with no expiry field to bound its staleness, and each
+call is counted as an impression — a cached response both shows a stale figure and silently drops
+renders from reporting.
 
 ---
 
@@ -138,7 +156,6 @@ Or `npm install @onrampfunds/embed` and `import { mount }`. For React, use
 | --- | --- |
 | `amount` | Major units — `40000` renders as `$40,000`. `null`, `0` or absent renders nothing. |
 | `currency` | ISO 4217. Defaults to `USD`. |
-| `validUntil` | ISO 8601 — a date, or a datetime with an **explicit offset**. One without an offset is read as local time, which makes the same string a different instant per merchant. |
 | `applyUrl` | Absolute `https:`. **Never construct this.** Pass through the one you were given. |
 | `lexicon` | `loan` or `mca`, from the response. An unrecognised value is refused rather than guessed. |
 | `copy` | The regulated strings. **Required** — see below. |
@@ -151,12 +168,8 @@ Or `npm install @onrampfunds/embed` and `import { mount }`. For React, use
 There are no baked fallbacks, deliberately. A fallback would be compiled-in regulated copy —
 frozen at publish time and unrevisable without every partner upgrading. **Forward the `copy` block
 whole and unmodified.** If a string is missing the card renders nothing rather than substituting
-wording compliance cannot revise.
-
-| Card | Requires |
-| --- | --- |
-| Prequalified | `qualifier`, `mechanism`, `disclosure` |
-| Expired | `expiredDisclosure` |
+wording compliance cannot revise. A prequalified card requires `qualifier`, `mechanism`, and
+`disclosure`.
 
 ### When nothing renders
 
@@ -174,7 +187,8 @@ month may qualify next month. Do not write "not eligible", "declined", or "you d
   browser-side authentication because there is no browser-side request.
 - **Never construct or rewrite `applyUrl`.** Pass through what you were given.
 - **Never edit the `copy` strings.** They are compliance-approved text. Forward them byte for byte.
-- **Never cache a prequalification past its `validUntil`.**
+- **Never cache the prequalification response.** It is served `Cache-Control: no-store`, and each
+  call is counted as an impression.
 - **Never hide the card with CSS.** The disclosure and the "not approved" qualifier are regulatory
   requirements, not decoration. If you need it gone, call `unmount()`.
 

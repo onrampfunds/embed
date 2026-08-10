@@ -72,22 +72,19 @@ export function validConfig(overrides: Partial<MountConfig> = {}): MountConfig {
   return {
     amount: 40000,
     currency: 'USD',
-    validUntil: '2099-08-06T07:00:00Z',
     applyUrl: 'https://onrampfunds.com/p/abc123',
     lexicon: 'loan',
     locale: 'en-US',
-  copy: {
-    qualifier:
-      'Pre-qualified, not approved. Onramp confirms the amount after reviewing your bank data.',
-    mechanism:
-      'Repaid automatically as a share of your daily sales. The fee, the rate, and the expected ' +
-      'length are set after review.',
-    disclosure:
-      'Pre-qualification from Onramp Funds is not an offer of credit. All applications are ' +
-      'subject to review prior to approval.',
-    expiredDisclosure:
-      'Pre-qualification from Onramp Funds is not an offer of credit. This estimate has expired.',
-  },
+    copy: {
+      qualifier:
+        'Pre-qualified, not approved. Onramp confirms the amount after reviewing your bank data.',
+      mechanism:
+        'Repaid automatically as a share of your daily sales. The fee, the rate, and the expected ' +
+        'length are set after review.',
+      disclosure:
+        'Pre-qualification from Onramp Funds is not an offer of credit. All applications are ' +
+        'subject to review prior to approval.',
+    },
     ...overrides,
   };
 }

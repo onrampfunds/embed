@@ -83,7 +83,6 @@
 
       <div class="controls">
         <button data-state="prequalified" aria-pressed="true">Prequalified</button>
-        <button data-state="expired" aria-pressed="false">Expired</button>
         <button data-state="none" aria-pressed="false">No amount</button>
         <button data-state="mounting" aria-pressed="false">Mounting</button>
         <button data-state="mca" aria-pressed="false">Asset purchase copy</button>
@@ -121,7 +120,6 @@
         const base = {
           amount: 40000,
           currency: 'USD',
-          validUntil: '2099-08-06T07:00:00Z',
           applyUrl: 'https://onrampfunds.com/p/abc123',
           lexicon: 'loan',
           partnerName: 'Cartwheel',
@@ -140,9 +138,6 @@
               'Pre-qualification from Onramp Funds is not an offer of credit. All applications ' +
               'are subject to review prior to approval; the amount is derived from sales ' +
               'history alone and may change once bank data is reviewed.',
-            expiredDisclosure:
-              'Pre-qualification from Onramp Funds is not an offer of credit. This estimate has ' +
-              'expired and no amount is shown.',
           },
           theme: { accent: '#2b5ce6', accentText: '#ffffff', radius: 10, font: 'system' },
           onEvent: (name, meta) => {
@@ -152,8 +147,6 @@
         };
 
         switch (variant) {
-          case 'expired':
-            return { ...base, validUntil: '2020-01-01T00:00:00Z' };
           case 'none':
             return { ...base, amount: null };
           case 'mounting':

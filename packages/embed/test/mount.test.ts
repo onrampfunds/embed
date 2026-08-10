@@ -134,38 +134,6 @@ describe('mount', () => {
     });
   });
 
-  describe('the expired state', () => {
-    beforeEach(() => {
-      mount('#capital', validConfig({ validUntil: '2020-01-01T00:00:00Z' }));
-    });
-
-    it('removes the amount from the DOM rather than dimming it', () => {
-      const html = root().innerHTML;
-      expect(html).not.toContain('40,000');
-      expect(html).not.toContain('40000');
-      expect(root().querySelector('.amount__figure')).toBeNull();
-    });
-
-    it('removes the mechanism line with it, since a stale rate is the same problem', () => {
-      expect(root().querySelector('.mechanism')).toBeNull();
-    });
-
-    it('says plainly that the estimate is out of date', () => {
-      expect(textOf('.expired__title')).toBe('This estimate is out of date.');
-    });
-
-    it('still offers a way to the current figure', () => {
-      expect(textOf('.cta')).toBe('Check current amount on Onramp');
-      expect(root().querySelectorAll(FOCUSABLE)).toHaveLength(1);
-    });
-
-    it('carries the served expiry-specific disclosure, not the live one', () => {
-      const copy = validConfig().copy;
-      expect(textOf('.disclosure')).toBe(copy?.expiredDisclosure);
-      expect(textOf('.disclosure')).not.toBe(copy?.disclosure);
-    });
-  });
-
   describe('the none state', () => {
     it('renders nothing at all and yields the slot', () => {
       const handle = mount('#capital', validConfig({ amount: null }));
@@ -345,12 +313,8 @@ describe('mount', () => {
       expect(onEvent).toHaveBeenCalledWith('skip', { reason: 'no-amount' });
     });
 
-    it('reports expired and error states', () => {
+    it('reports an error for a malformed config', () => {
       silenceConsole();
-      const expired = vi.fn();
-      mount('#capital', validConfig({ validUntil: '2020-01-01T00:00:00Z', onEvent: expired }));
-      expect(expired).toHaveBeenCalledWith('expired', expect.objectContaining({ lexicon: 'loan' }));
-
       const invalid = vi.fn();
       mount('#capital', validConfig({ amount: -5, onEvent: invalid }));
       expect(invalid).toHaveBeenCalledWith('error', expect.objectContaining({ reason: expect.any(String) }));

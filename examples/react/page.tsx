@@ -15,43 +15,58 @@ import type { MountConfig } from '@onrampfunds/embed-react';
  * Stands in for the partner's own data layer.
  */
 declare function getCurrentMerchant(): Promise<{
-  id: string;
+  email: string;
   operatingState: string;
-  trailingMonthlySalesCents: number;
+  shopDomain: string;
+  trailing90DaySales: number;
 }>;
 
+/**
+ * Stands in for your token cache. The JWT comes from
+ * `POST https://app.onrampfunds.com/partners/api/tokens` with your `client_id` and
+ * `client_secret` — cache it and re-mint on a 401 rather than minting per request.
+ */
+declare function onrampAccessToken(): Promise<string>;
+
 async function fetchPrequalification(merchant: {
-  id: string;
+  email: string;
   operatingState: string;
-  trailingMonthlySalesCents: number;
+  shopDomain: string;
+  trailing90DaySales: number;
 }): Promise<MountConfig> {
-  const response = await fetch('https://onrampfunds.com/partners/api/prequalifications', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${process.env.ONRAMP_API_KEY}`,
-      'content-type': 'application/json',
+  // Nested parameters use Rails bracket notation, with `platforms[]` repeated once per
+  // platform. Indexed keys (`platforms[0][type]`) are rejected with a 422.
+  const query = new URLSearchParams();
+  query.append('seller_email', merchant.email);
+  // Required: the merchant's state decides which product applies, and therefore which
+  // vocabulary the card must use. A state Onramp does not operate in comes back with no amount.
+  query.append('operating_state', merchant.operatingState);
+  query.append('platforms[][type]', 'shopify');
+  query.append('platforms[][seller_id]', merchant.shopDomain);
+  query.append('platforms[][sales][90_days]', String(merchant.trailing90DaySales));
+
+  const response = await fetch(
+    `https://app.onrampfunds.com/partners/api/embed/prequalifications?${query}`,
+    {
+      headers: { authorization: `Bearer ${await onrampAccessToken()}` },
+      // The response is served Cache-Control: no-store, and that is a mandate, not a hint: the
+      // body holds a merchant-specific amount with no expiry field, and each call is counted as
+      // an impression, so a cached response shows a stale figure and drops renders from
+      // reporting.
+      cache: 'no-store',
     },
-    body: JSON.stringify({
-      merchant_id: merchant.id,
-      // Required: the merchant's state decides which product applies, and therefore which
-      // vocabulary the card must use. An unsupported state comes back with no amount.
-      state: merchant.operatingState,
-      monthly_sales_cents: merchant.trailingMonthlySalesCents,
-    }),
-    // Your caching is your call. Onramp counts each of these calls as an impression, so caching
-    // trades reporting granularity for latency — worth choosing deliberately rather than by
-    // default.
-    next: { revalidate: 3600 },
-  });
+  );
 
   if (!response.ok) {
-    // Render the page without the card rather than failing it. A merchant's dashboard should not
-    // break because a financing panel is unavailable.
+    // A 422 is an integration error, never a decline — a merchant who does not qualify gets a
+    // 200 with a null amount. Either way, render the page without the card rather than failing
+    // it. A merchant's dashboard should not break because a financing panel is unavailable.
     throw new Error(`prequalification failed: ${response.status}`);
   }
 
-  // amount, currency, validUntil, applyUrl, lexicon, copy and theme all come back from here.
-  // Forward the whole thing — do not pick fields out of it.
+  // amount, currency, applyUrl, lexicon, copy and theme all come back from here, in camelCase.
+  // Forward the whole thing — do not pick fields out of it. A 200 can still carry
+  // `amount: null`, which the card handles by rendering nothing.
   return response.json() as Promise<MountConfig>;
 }
 

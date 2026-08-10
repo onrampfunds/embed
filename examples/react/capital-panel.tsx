@@ -23,7 +23,7 @@ export function CapitalPanel({ prequalification }: { prequalification: MountConf
 
   return (
     <OnrampPrequalification
-      // Forward the response whole: amount, currency, validUntil, applyUrl, lexicon, copy, theme.
+      // Forward the response whole: amount, currency, applyUrl, lexicon, copy, theme.
       // `copy` carries the regulated strings and is required — the card renders nothing without
       // it, rather than falling back to wording compliance cannot revise.
       {...prequalification}
