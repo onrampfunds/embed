@@ -128,7 +128,6 @@ export async function styleOf(
 export const CONFIG: MountConfig = {
   amount: 40000,
   currency: 'USD',
-  validUntil: '2099-08-06T07:00:00Z',
   applyUrl: 'https://onrampfunds.com/p/abc123',
   lexicon: 'loan',
   locale: 'en-US',
@@ -142,7 +141,5 @@ export const CONFIG: MountConfig = {
     disclosure:
       'Pre-qualification from Onramp Funds is not an offer of credit. All applications are ' +
       'subject to review prior to approval.',
-    expiredDisclosure:
-      'Pre-qualification from Onramp Funds is not an offer of credit. This estimate has expired.',
   },
 };

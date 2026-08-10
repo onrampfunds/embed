@@ -5,12 +5,11 @@ export type Lexicon = 'loan' | 'mca';
  * What the card decided to render.
  *
  * - `prequalified` — the full card. The only state that shows a figure.
- * - `expired` — `validUntil` has passed. The amount is removed from the DOM, not dimmed.
  * - `mounting` — the partner is still fetching. Static blocks, no spinner.
  * - `none` — nothing rendered; the slot is yielded back to the partner.
  * - `invalid` — the config was malformed. Nothing rendered, and the reason is logged.
  */
-export type CardState = 'prequalified' | 'expired' | 'mounting' | 'none' | 'invalid';
+export type CardState = 'prequalified' | 'mounting' | 'none' | 'invalid';
 
 /**
  * The whole themable surface: seven tokens, plus an optional partner name that lives on
@@ -45,12 +44,9 @@ export interface ThemeTokens {
  *
  * They are **required**, not optional, and there are no baked fallbacks. A response missing one is
  * refused and the card renders nothing, which is safer than substituting compiled-in copy that
- * cannot be revised. Which strings a given card needs depends on what it renders: a prequalified
- * card needs `qualifier`, `mechanism` and `disclosure`; an expired one needs only
- * `expiredDisclosure`, since it shows neither a figure nor a mechanism line.
+ * cannot be revised. A prequalified card needs `qualifier`, `mechanism` and `disclosure`.
  *
- * Typed optional because the requirement varies by state, and because `mounting` and the
- * no-amount case render no regulated copy at all.
+ * Typed optional because `mounting` and the no-amount case render no regulated copy at all.
  */
 export interface ServedCopy {
   /** The "pre-qualified, not approved" band. Load-bearing, not decoration. */
@@ -59,24 +55,16 @@ export interface ServedCopy {
   mechanism?: string;
   /** The disclosure footer. */
   disclosure?: string;
-  /** The disclosure footer for the expired state. */
-  expiredDisclosure?: string;
 }
 
 /** Events reported back into the partner's page. The library never phones home. */
-export type EmbedEvent = 'view' | 'expired' | 'click' | 'skip' | 'error';
+export type EmbedEvent = 'view' | 'click' | 'skip' | 'error';
 
 export interface MountConfig {
   /** The prequalified amount in major currency units. `null` or omitted renders nothing. */
   amount?: number | null;
   /** ISO 4217 code. Defaults to `USD`. */
   currency?: string;
-  /**
-   * ISO 8601 — a date, or a datetime carrying an explicit offset. A datetime without one
-   * reads as local time, which would make the same string a different instant per merchant.
-   * Once it passes, the card renders its expired state.
-   */
-  validUntil?: string;
   /**
    * Where the primary action goes. Must be absolute `https:` — or `http:` on loopback
    * (`localhost`, `127.0.0.1`, `[::1]`), so a partner can develop against a local Onramp. The

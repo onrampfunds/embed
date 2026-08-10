@@ -11,7 +11,7 @@ import type { CardState } from './types';
  */
 
 export interface RenderInput {
-  state: Extract<CardState, 'prequalified' | 'expired' | 'mounting'>;
+  state: Extract<CardState, 'prequalified' | 'mounting'>;
   copy: ResolvedCopy;
   /** Already formatted, or `null` in every state that must not show a figure. */
   amountLabel: string | null;
@@ -86,14 +86,6 @@ function prequalified(doc: Document, copy: ResolvedCopy, amountLabel: string): H
   return stack;
 }
 
-/** No figure and no mechanism line — both are removed from the DOM, not dimmed. */
-function expired(doc: Document, copy: ResolvedCopy): HTMLElement {
-  const block = el(doc, 'div', 'expired');
-  block.appendChild(el(doc, 'p', 'expired__title', copy.expiredTitle));
-  block.appendChild(el(doc, 'p', 'expired__reason', copy.expiredReason));
-  return block;
-}
-
 /** Static blocks at roughly the final height. No spinner, no motion, no live-region chatter. */
 function mounting(doc: Document, copy: ResolvedCopy): HTMLElement {
   const block = el(doc, 'div', 'skeleton');
@@ -145,12 +137,8 @@ export function renderCard(doc: Document, input: RenderInput): RenderedCard {
 
   if (input.state === 'mounting') {
     body.appendChild(mounting(doc, input.copy));
-  } else {
-    if (input.state === 'prequalified' && input.amountLabel !== null) {
-      body.appendChild(prequalified(doc, input.copy, input.amountLabel));
-    } else {
-      body.appendChild(expired(doc, input.copy));
-    }
+  } else if (input.amountLabel !== null) {
+    body.appendChild(prequalified(doc, input.copy, input.amountLabel));
     const built = action(doc, input.copy, input.applyUrl);
     body.appendChild(built.wrapper);
     cta = built.cta;

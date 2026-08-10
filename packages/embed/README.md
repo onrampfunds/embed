@@ -16,8 +16,6 @@ import { mount } from '@onrampfunds/embed';
 mount('#capital', {
   amount: 40000,
   currency: 'USD',
-  // Onramp-set, and illustrative here. Once it passes, the card renders its expired state.
-  validUntil: '2030-01-01T00:00:00Z',
   applyUrl: 'https://onrampfunds.com/p/abc123...',
   lexicon: 'loan',
   copy: {
@@ -47,7 +45,7 @@ card?.update(nextConfig); // re-render in place, returns the new state
 card?.unmount(); // remove the card and every listener it installed
 ```
 
-A handle is only ever returned for `'prequalified'`, `'expired'`, or `'mounting'`, but `state`
+A handle is only ever returned for `'prequalified'` or `'mounting'`, but `state`
 tracks the lifecycle after that: `update()` can move it to any state including `'none'` (the new
 config has no amount) or `'invalid'` (the new config is malformed), and `unmount()` leaves it at
 `'none'`. So read `card.state` after a lifecycle call rather than assuming it still holds whatever
@@ -59,7 +57,6 @@ the mount returned.
 | --- | --- | --- |
 | `amount` | `number \| null` | Major currency units — `40000` renders as `$40,000`. `null`, omitted, or `0` renders nothing. |
 | `currency` | `string` | ISO 4217. Defaults to `USD`. |
-| `validUntil` | `string` | ISO 8601 — a date, or a datetime with an explicit offset. Once passed, the card renders its expired state. |
 | `applyUrl` | `string` | Required whenever there is an amount. Absolute `https:`, or `http:` on loopback for local development. Pass the one from the prequalification response unchanged. |
 | `lexicon` | `'loan' \| 'mca'` | Defaults to `loan`. Comes from the prequalification response. |
 | `partnerName` | `string` | Renders as "for {name}", and names the site being left. |
@@ -74,7 +71,6 @@ the mount returned.
 | State | What renders |
 | --- | --- |
 | `prequalified` | The full card. The only state that shows a figure. |
-| `expired` | The amount and mechanism line are **removed from the DOM, not dimmed** — a stale figure is a compliance problem. The action still works, because the current number exists on Onramp. |
 | `mounting` | Static blocks at roughly the final height. No spinner, no motion. |
 | `none` | Nothing. `mount` returns `null` and yields the slot. Never reads as a rejection. |
 | `invalid` | The config was malformed. Nothing renders and the reason is logged. Never a broken card in production. |
@@ -108,7 +104,6 @@ Pass the `copy` block from the response straight through:
 | `qualifier` | The "pre-qualified, not approved" band. Load-bearing, not decoration. |
 | `mechanism` | One sentence on how repayment works. |
 | `disclosure` | The disclosure footer. |
-| `expiredDisclosure` | The disclosure footer for the expired state. |
 
 **They are required, and the library fails closed by refusing.** A string that is missing, `null`,
 empty, whitespace, or the wrong type makes the whole config invalid: nothing renders and the
@@ -125,7 +120,6 @@ Which strings a card needs depends on what it renders:
 | Card | Requires |
 | --- | --- |
 | Prequalified | `qualifier`, `mechanism`, `disclosure` |
-| Expired | `expiredDisclosure` only — it shows neither a figure nor a mechanism line |
 | Mounting, or no amount | none |
 
 Served strings are rendered **verbatim**. The library appends nothing to them, so what compliance
@@ -187,7 +181,6 @@ Both log a warning saying which pairing failed and by how much.
 | Event | When |
 | --- | --- |
 | `view` | A prequalified card rendered. Carries `amount`, `currency`, `lexicon`, `safeMode`, and which served strings fell back. |
-| `expired` | The expired card rendered. |
 | `click` | The action was activated. The navigation is never prevented. |
 | `skip` | Nothing rendered because there was no amount. |
 | `error` | The config was malformed. Carries the reason. |

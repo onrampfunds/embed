@@ -60,8 +60,6 @@ to negotiate, and nothing to enumerate from the browser.
 Onramp.mount('#capital', {
   amount: 40000,
   currency: 'USD',
-  // Onramp-set, and illustrative here. Once it passes, the card renders its expired state.
-  validUntil: '2030-01-01T00:00:00Z',
   applyUrl: 'https://onrampfunds.com/p/abc123...',
   lexicon: 'loan',
   copy: {

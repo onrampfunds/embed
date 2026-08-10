@@ -26,15 +26,3 @@ export function formatAmount(amount: number, currency: string, locale: string | 
   }
 }
 
-/** Formats an expiry as `Aug 14, 2026` in the merchant's locale. */
-export function formatDate(date: Date, locale: string | undefined): string {
-  try {
-    return new Intl.DateTimeFormat(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(date);
-  } catch {
-    return date.toISOString().slice(0, 10);
-  }
-}

@@ -5,14 +5,11 @@ const SERVED = {
   qualifier: 'Pre-qualified, not approved. Onramp confirms the amount after bank review.',
   mechanism: 'Repaid automatically as a share of your daily sales.',
   disclosure: 'Not an offer of credit. All applications are subject to review prior to approval.',
-  expiredDisclosure: 'Not an offer of credit. This estimate has expired and no amount is shown.',
 };
 
 const input = (overrides: Partial<Parameters<typeof resolveCopy>[0]> = {}) =>
   resolveCopy({
     copy: SERVED,
-    expired: false,
-    validUntil: 'Aug 14, 2026',
     partnerName: null,
     applyHost: 'onrampfunds.com',
     ...overrides,
@@ -27,10 +24,6 @@ describe('resolveCopy', () => {
       expect(copy.qualifier).toBe(SERVED.qualifier);
       expect(copy.mechanism).toBe(SERVED.mechanism);
       expect(copy.disclosure).toBe(SERVED.disclosure);
-    });
-
-    it('uses the expired disclosure for the expired card', () => {
-      expect(input({ expired: true }).disclosure).toBe(SERVED.expiredDisclosure);
     });
 
     it('ships no compiled-in regulated copy to fall back on', async () => {
@@ -58,9 +51,8 @@ describe('resolveCopy', () => {
       expect(CHROME.eyebrow.toLowerCase()).not.toContain('approved for');
     });
 
-    it('switches the action label in the expired state', () => {
+    it('labels the action as seeing the offer', () => {
       expect(input().ctaLabel).toBe('See your offer');
-      expect(input({ expired: true }).ctaLabel).toBe('Check current amount on Onramp');
     });
 
     it('names the partner in the departure notice when it knows one', () => {
@@ -79,12 +71,6 @@ describe('resolveCopy', () => {
       expect(input({ applyHost: 'somewhere-else.example' }).departure).toContain(
         'Takes you to somewhere-else.example',
       );
-    });
-
-    it('dates the expired reason line when it has an expiry', () => {
-      expect(input({ expired: true }).expiredReason).toContain('It expired Aug 14, 2026');
-      expect(input({ expired: true, validUntil: null }).expiredReason)
-        .not.toContain('It expired');
     });
   });
 });

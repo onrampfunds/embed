@@ -21,8 +21,6 @@ export const CHROME = {
   attribution: 'Onramp Funds',
   eyebrow: 'Pre-qualified for up to',
   ctaLabel: 'See your offer',
-  expiredCtaLabel: 'Check current amount on Onramp',
-  expiredTitle: 'This estimate is out of date.',
   loadingLabel: 'Loading pre-qualification',
   /** Only used where there is no apply URL to name — the mounting state, which shows no action. */
   defaultApplyHost: 'onrampfunds.com',
@@ -32,8 +30,6 @@ export interface ResolvedCopy {
   qualifier: string;
   mechanism: string;
   disclosure: string;
-  expiredTitle: string;
-  expiredReason: string;
   attribution: string;
   eyebrow: string;
   ctaLabel: string;
@@ -43,9 +39,6 @@ export interface ResolvedCopy {
 
 export interface CopyInput {
   copy: ServedCopy | undefined;
-  expired: boolean;
-  /** Already formatted for the merchant's locale, or `null` when no expiry was supplied. */
-  validUntil: string | null;
   /** The partner's name, or `null` — the departure notice reads "this site" without one. */
   partnerName: string | null;
   /**
@@ -62,25 +55,15 @@ export function resolveCopy(input: CopyInput): ResolvedCopy {
   // Presence is guaranteed by `normalize`, which refuses the config otherwise. The empty-string
   // defaults here are unreachable and exist only so this returns a total value rather than
   // asserting non-null — a card is not a place to discover a broken invariant at runtime.
-  const disclosure = input.expired
-    ? (servedString(supplied.expiredDisclosure) ?? '')
-    : (servedString(supplied.disclosure) ?? '');
-
   const site = input.partnerName ?? 'this site';
 
   return {
     qualifier: servedString(supplied.qualifier) ?? '',
     mechanism: servedString(supplied.mechanism) ?? '',
-    disclosure,
-    expiredTitle: CHROME.expiredTitle,
-    expiredReason:
-      input.validUntil !== null
-        ? `It expired ${input.validUntil}. Onramp has the current figure — nothing here is ` +
-          'accurate any more.'
-        : 'Onramp has the current figure — nothing here is accurate any more.',
+    disclosure: servedString(supplied.disclosure) ?? '',
     attribution: CHROME.attribution,
     eyebrow: CHROME.eyebrow,
-    ctaLabel: input.expired ? CHROME.expiredCtaLabel : CHROME.ctaLabel,
+    ctaLabel: CHROME.ctaLabel,
     loadingLabel: CHROME.loadingLabel,
     departure: `Takes you to ${input.applyHost ?? CHROME.defaultApplyHost} — you'll leave ${site}.`,
   };

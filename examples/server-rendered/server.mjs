@@ -27,18 +27,21 @@ const BUNDLE = path.resolve(here, '../../packages/embed/dist/onramp-embed.umd.js
 const PORT = Number(process.env.PORT ?? 5173);
 
 /**
- * Stands in for `POST /partners/api/prequalifications`. In production this is an authenticated
- * server-to-server call carrying the merchant's identifier, their state, and aggregate sales.
+ * Stands in for `GET /partners/api/embed/prequalifications`. In production this is an
+ * authenticated server-to-server call carrying the merchant's email, their operating state, and
+ * their platform sales — and its response must not be cached (it is served
+ * `Cache-Control: no-store`, and each call is counted as an impression).
  *
  * Note what comes back: the regulated strings are *served*, not compiled into the package, so
  * compliance can revise them without anyone shipping a release.
  */
-async function fetchPrequalification(merchantId) {
+async function fetchPrequalification(sellerEmail) {
   return {
+    correlationId: '065a417b-ce17-4c64-b8dd-e35a3128a021',
     amount: 40000,
     currency: 'USD',
-    validUntil: '2099-08-06T07:00:00Z',
-    applyUrl: `https://onrampfunds.com/p/${merchantId}`,
+    applyUrl:
+      'https://app.onrampfunds.com/partners/prequalifications/065a417b-ce17-4c64-b8dd-e35a3128a021',
     lexicon: 'loan',
     copy: {
       qualifier:
@@ -53,7 +56,6 @@ async function fetchPrequalification(merchantId) {
         'and may change once bank data is reviewed.',
     },
     theme: { accent: '#2b5ce6', accentText: '#ffffff', radius: 10, font: 'system' },
-    partnerName: 'Cartwheel',
   };
 }
 
@@ -155,7 +157,9 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  const prequalification = await fetchPrequalification('abc123');
+  const prequalification = await fetchPrequalification('merchant@example.com');
+  // Yours, not the API's: shown as "for Cartwheel", and names the site the merchant is leaving.
+  prequalification.partnerName = 'Cartwheel';
   response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   response.end(page(prequalification));
 });
