@@ -102,11 +102,16 @@ a loop.
 
 ### Documentation
 
-- **INTEGRATING.md Step 2 flips.** Primary path: expose the prequalification at a
-  session-authenticated JSON endpoint on the partner's own origin, pass the fetch to `data`. The
-  `<script type="application/json">` block and its three escaping rules move to an appendix for
-  SSR partners who want zero extra round-trips.
-- **Both package READMEs** lead with the `data` one-liner.
+**Every place that documents `mount()` shows both paths, as peers.** Direct data — a plain
+config, already fetched — remains fully documented as the primitive; the `data` promise is
+presented as an optional convenience layered on it, never as a replacement.
+
+- **INTEGRATING.md Step 2 presents both connections** between the halves: (a) direct data — the
+  existing `<script type="application/json">` block with its escaping rules for server-rendered
+  pages, or fetch-then-mount for client code; (b) the `data` promise, which folds the fetch,
+  pending state, and no-offer handling into one call. Each labelled with when to prefer it.
+- **Both package READMEs** show the two forms side by side: the existing direct-config example
+  and the `data` one-liner, with a sentence on when each fits.
 - **Failure guidance is unchanged:** handle failure by rendering the page without the card; the
   `data` path now does that automatically.
 
