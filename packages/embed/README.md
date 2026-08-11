@@ -51,6 +51,11 @@ so your element is left exactly as the library found it when you unmount.
 Returns a handle, or **`null` when nothing was rendered**. `null` is your cue to render your own
 fallback into the slot — it never means the merchant was rejected.
 
+With `data`, the contract shifts: valid config always returns a handle, because there is nothing
+to decide until the promise settles. An async no-offer outcome never surfaces as `null` — it
+surfaces as the `skip` event and `card.state` becoming `'none'`, so branch on those, not on the
+return value.
+
 ```js
 const card = mount('#capital', config);
 
@@ -87,7 +92,7 @@ the mount returned.
 | --- | --- |
 | `prequalified` | The full card. The only state that shows a figure. |
 | `mounting` | Static blocks at roughly the final height. No spinner, no motion. |
-| `none` | Nothing. `mount` returns `null` and yields the slot. Never reads as a rejection. |
+| `none` | Nothing. A direct mount returns `null` and yields the slot; a `data` mount's handle reports it after settling. Never reads as a rejection. |
 | `invalid` | The config was malformed. Nothing renders and the reason is logged. Never a broken card in production. |
 
 ### The `data` promise

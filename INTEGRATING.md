@@ -198,6 +198,10 @@ wording compliance cannot revise. A prequalified card requires `qualifier`, `mec
 `mount()` returns `null` when there is no amount, or when the config is malformed (the reason is
 logged). Check `amount` on the server and decide what fills the slot.
 
+The `data` path cannot use the `null` cue — `mount()` returns a handle while the promise is
+pending. There, a no-offer settlement yields the slot, emits `skip`, and moves `handle.state` to
+`'none'`; branch on the event or the state, not the return value.
+
 **Whatever you put there must never read as a rejection.** A merchant who does not qualify this
 month may qualify next month. Do not write "not eligible", "declined", or "you don't qualify".
 

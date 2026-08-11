@@ -20,6 +20,14 @@ export type {
 /** Marks our host element so a re-mount can clear the previous card instead of stacking on it. */
 const HOST_ATTR = 'data-onramp-embed';
 
+/**
+ * The newest mount() per container. A pending `data` mount's settlement acts only while its
+ * mount still owns the container — a later mount() into the same slot supersedes it exactly as
+ * that handle's own update() or unmount() would. Without this, two pending mounts racing on one
+ * container let the older payload clear and replace the newer card.
+ */
+const owners = new WeakMap<Element, object>();
+
 export const version = VERSION;
 
 function fail(message: string): void {
@@ -112,6 +120,9 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     fail(`mount target ${describeTarget(target)} did not match an element. Nothing was rendered.`);
     return null;
   }
+
+  const claim = {};
+  owners.set(container, claim);
 
   let state: CardState = 'none';
   let host: HTMLElement | null = null;
@@ -259,7 +270,7 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     // Spends the settlement on whichever callback runs first: a thenable that calls a callback
     // twice, or calls both, must still produce exactly one render.
     const settleRejection = (cause: unknown): void => {
-      if (!live) return;
+      if (!live || owners.get(container) !== claim) return;
       live = false;
       teardown();
       clearPrevious(container);
@@ -269,7 +280,7 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
 
     try {
       data.then((payload) => {
-        if (!live) return;
+        if (!live || owners.get(container) !== claim) return;
         live = false;
         // Non-object payloads cannot be merged; validate directly to get the canonical error message.
         if (!isObject(payload)) {

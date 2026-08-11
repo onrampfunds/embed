@@ -286,6 +286,37 @@ describe('mount with data', () => {
       expect(onEvent).not.toHaveBeenCalledWith('view', expect.objectContaining({ amount: 99000 }));
     });
 
+    it('lets a newer pending mount supersede an older one, discarding the stale settlement', async () => {
+      const first = deferred<Partial<MountConfig>>();
+      const second = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      mount(container, { data: first.promise, onEvent });
+      mount(container, { data: second.promise });
+
+      second.resolve(validConfig({ amount: 25000 }));
+      await settle();
+      first.resolve(validConfig({ amount: 99000 }));
+      await settle();
+
+      expect(container.children).toHaveLength(1);
+      const root = shadow.roots[shadow.roots.length - 1];
+      expect(root?.querySelector('.amount__figure')?.textContent?.trim()).toBe('$25,000');
+      expect(onEvent).not.toHaveBeenCalledWith('view', expect.objectContaining({ amount: 99000 }));
+    });
+
+    it('lets a plain mount supersede a pending mount', async () => {
+      const { promise, resolve } = deferred<Partial<MountConfig>>();
+      mount(container, { data: promise });
+      mount(container, validConfig({ amount: 25000 }));
+
+      resolve(validConfig({ amount: 99000 }));
+      await settle();
+
+      expect(container.children).toHaveLength(1);
+      const root = shadow.roots[shadow.roots.length - 1];
+      expect(root?.querySelector('.amount__figure')?.textContent?.trim()).toBe('$25,000');
+    });
+
     it('refuses a data key passed to update(), loudly', () => {
       silenceConsole();
       const handle = mount(container, validConfig());
