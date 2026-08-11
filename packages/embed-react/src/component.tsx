@@ -42,8 +42,10 @@ export function OnrampPrequalification(props: OnrampPrequalificationProps): Reac
 
   // Value identity for everything serialisable; reference identity for the promise, which has no
   // value until it settles — and when it settles, the core repaints in place without a remount.
+  // The core accepts function-shaped thenables too, so this must match — `data !== null` still
+  // guards it, since `typeof null === 'object'` would otherwise make `referenceId(null)` throw.
   const signature =
-    data !== null && typeof data === 'object'
+    data !== null && (typeof data === 'object' || typeof data === 'function')
       ? `${signatureOf(config)}|data:${referenceId(data)}`
       : signatureOf(config);
 

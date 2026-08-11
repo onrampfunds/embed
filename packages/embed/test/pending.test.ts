@@ -18,13 +18,13 @@ afterEach(() => {
 });
 
 /** The settle handler runs on the microtask queue; two ticks put every assertion after it. */
-export const settle = async (): Promise<void> => {
+const settle = async (): Promise<void> => {
   await Promise.resolve();
   await Promise.resolve();
 };
 
 /** A promise the test settles by hand, so order of events is the test's to choose. */
-export function deferred<T>(): {
+function deferred<T>(): {
   promise: Promise<T>;
   resolve: (value: T) => void;
   reject: (reason: unknown) => void;
@@ -274,6 +274,45 @@ describe('mount with data', () => {
         'error',
         expect.objectContaining({ reason: expect.stringContaining('data is only accepted at mount()') }),
       );
+    });
+  });
+
+  describe('misbehaving thenables', () => {
+    it('treats a thenable whose then() throws synchronously like a rejection', () => {
+      silenceConsole();
+      const onEvent = vi.fn();
+      const thenable = {
+        then(): never {
+          throw new Error('then blew up');
+        },
+      };
+
+      const handle = mount(container, { data: thenable as never, onEvent });
+
+      expect(handle).not.toBeNull();
+      expect(handle?.state).toBe('none');
+      expect(container.children).toHaveLength(0);
+      expect(onEvent).toHaveBeenCalledWith('error', { reason: 'then blew up' });
+    });
+
+    it('spends the settlement on the first call, so a thenable resolving twice renders once', async () => {
+      const onEvent = vi.fn();
+      let fulfilTwice!: (payload: Partial<MountConfig>) => void;
+      const thenable = {
+        then(onFulfilled: (payload: Partial<MountConfig>) => void) {
+          fulfilTwice = (payload) => {
+            onFulfilled(payload);
+            onFulfilled(payload);
+          };
+        },
+      };
+
+      const handle = mount(container, { data: thenable as never, onEvent });
+      fulfilTwice(validConfig());
+      await settle();
+
+      expect(handle?.state).toBe('prequalified');
+      expect(onEvent.mock.calls.filter(([name]) => name === 'view')).toHaveLength(1);
     });
   });
 });

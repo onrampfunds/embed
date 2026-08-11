@@ -251,9 +251,21 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
       state = 'mounting';
     }
 
-    data.then(
-      (payload) => {
+    // Spends the settlement on whichever callback runs first: a thenable that calls a callback
+    // twice, or calls both, must still produce exactly one render.
+    const settleRejection = (cause: unknown): void => {
+      if (!live) return;
+      live = false;
+      teardown();
+      clearPrevious(container);
+      state = 'none';
+      emit('error', { reason: cause instanceof Error ? cause.message : String(cause) });
+    };
+
+    try {
+      data.then((payload) => {
         if (!live) return;
+        live = false;
         // Non-object payloads cannot be merged; validate directly to get the canonical error message.
         if (!isObject(payload)) {
           teardown();
@@ -266,15 +278,12 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
           return;
         }
         state = render(mergeResolved(pageSide, payload));
-      },
-      (cause: unknown) => {
-        if (!live) return;
-        teardown();
-        clearPrevious(container);
-        state = 'none';
-        emit('error', { reason: cause instanceof Error ? cause.message : String(cause) });
-      },
-    );
+      }, settleRejection);
+    } catch (thrown) {
+      // A thenable's `then` can throw synchronously instead of settling normally — most often a
+      // hand-rolled one. Treated the same as a rejection: no exception reaches the partner's page.
+      settleRejection(thrown);
+    }
 
     return {
       get state(): CardState {

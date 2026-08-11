@@ -154,11 +154,11 @@ This half is exact. Everything below is the real contract.
         integrity="sha384-<published with each release>"
         crossorigin="anonymous"></script>
 <script>
-  var data = JSON.parse(document.getElementById('onramp-data').textContent);
-  data.partnerName = 'Your Platform';
-  data.onEvent = function (name, meta) { yourAnalytics.track('onramp:' + name, meta); };
+  var prequalification = JSON.parse(document.getElementById('onramp-data').textContent);
+  prequalification.partnerName = 'Your Platform';
+  prequalification.onEvent = function (name, meta) { yourAnalytics.track('onramp:' + name, meta); };
 
-  var card = Onramp.mount('#capital', data);
+  var card = Onramp.mount('#capital', prequalification);
   if (card === null) {
     // Nothing rendered. Put your own content in the slot — see "no amount" below.
   }
