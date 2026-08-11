@@ -1,5 +1,5 @@
 import { LOG_PREFIX, VERSION } from './constants';
-import { isExpectedApplyHost, normalize } from './config';
+import { isExpectedApplyHost, isObject, normalize } from './config';
 import { resolveCopy } from './copy';
 import { fieldsBesideData, isThenable, mergeResolved } from './data';
 import { formatAmount } from './format';
@@ -254,6 +254,15 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     data.then(
       (payload) => {
         if (!live) return;
+        // Non-object payloads bypass mergeResolved() to preserve the validation error message,
+        // but we still emit using the pageSide handler for consistency.
+        if (!isObject(payload)) {
+          teardown();
+          clearPrevious(container);
+          state = 'invalid';
+          emit('error', { reason: 'config must be an object' });
+          return;
+        }
         state = render(mergeResolved(pageSide, payload));
       },
       (cause: unknown) => {

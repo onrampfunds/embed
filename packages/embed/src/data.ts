@@ -32,7 +32,8 @@ export function fieldsBesideData(config: MountConfig): string[] {
  * the merge: pending presentation is a page-side concern, and the pending promise is spent.
  *
  * A payload that is not config-shaped passes through untouched so `normalize()` refuses it with
- * its usual message — the partner hears "config must be an object", not a mystery.
+ * its usual message — the partner hears "config must be an object", not a mystery. Page-side
+ * handlers (onEvent) are still preserved by modifying render's emit before validation.
  */
 export function mergeResolved(pageSide: MountConfig, payload: unknown): MountConfig {
   if (!isObject(payload)) return payload as MountConfig;

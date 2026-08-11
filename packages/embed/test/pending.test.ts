@@ -123,4 +123,100 @@ describe('mount with data', () => {
       expect(onEvent).toHaveBeenCalledWith('view', expect.anything());
     });
   });
+
+  describe('settle outcomes', () => {
+    it('yields the slot and emits skip when the payload has no amount', async () => {
+      const { promise, resolve } = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      const handle = mount(container, { data: promise, onEvent });
+
+      resolve({ amount: null });
+      await settle();
+
+      expect(handle?.state).toBe('none');
+      expect(container.children).toHaveLength(0);
+      expect(onEvent).toHaveBeenCalledWith('skip', { reason: 'no-amount' });
+      expect(onEvent).not.toHaveBeenCalledWith('view', expect.anything());
+    });
+
+    it('treats a zero amount exactly like null', async () => {
+      const { promise, resolve } = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      const handle = mount(container, { data: promise, onEvent });
+
+      resolve({ ...validConfig(), amount: 0 });
+      await settle();
+
+      expect(handle?.state).toBe('none');
+      expect(container.children).toHaveLength(0);
+      expect(onEvent).toHaveBeenCalledWith('skip', { reason: 'no-amount' });
+    });
+
+    it('yields the slot and emits error on rejection — never an error card', async () => {
+      silenceConsole();
+      const { promise, reject } = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      const handle = mount(container, { data: promise, onEvent });
+
+      reject(new Error('endpoint returned 500'));
+      await settle();
+
+      expect(handle?.state).toBe('none');
+      expect(container.children).toHaveLength(0);
+      expect(onEvent).toHaveBeenCalledWith('error', { reason: 'endpoint returned 500' });
+    });
+
+    it('emits error when the payload is not config-shaped', async () => {
+      silenceConsole();
+      const { promise, resolve } = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      const handle = mount(container, { data: promise, onEvent });
+
+      resolve('a JSON string the partner forgot to parse' as never);
+      await settle();
+
+      expect(handle?.state).toBe('invalid');
+      expect(container.children).toHaveLength(0);
+      expect(onEvent).toHaveBeenCalledWith('error', expect.objectContaining({ reason: expect.stringContaining('object') }));
+    });
+  });
+
+  describe('the skeleton opt-in', () => {
+    it('shows the skeleton immediately with state mounting beside data', () => {
+      const { promise } = deferred<Partial<MountConfig>>();
+      const handle = mount(container, { data: promise, state: 'mounting' });
+
+      expect(handle?.state).toBe('mounting');
+      expect(container.children).toHaveLength(1);
+      const root = shadow.roots[shadow.roots.length - 1];
+      expect(root?.querySelector('.skeleton')).not.toBeNull();
+    });
+
+    it('replaces the skeleton with the card on resolve', async () => {
+      const { promise, resolve } = deferred<Partial<MountConfig>>();
+      mount(container, { data: promise, state: 'mounting' });
+
+      resolve(validConfig());
+      await settle();
+
+      expect(container.children).toHaveLength(1);
+      const root = shadow.roots[shadow.roots.length - 1];
+      expect(root?.querySelector('.skeleton')).toBeNull();
+      expect(root?.querySelector('.amount__figure')?.textContent?.trim()).toBe('$40,000');
+    });
+
+    it('collapses the skeleton when the payload has no amount', async () => {
+      const { promise, resolve } = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      const handle = mount(container, { data: promise, state: 'mounting', onEvent });
+      expect(container.children).toHaveLength(1);
+
+      resolve({ amount: null });
+      await settle();
+
+      expect(handle?.state).toBe('none');
+      expect(container.children).toHaveLength(0);
+      expect(onEvent).toHaveBeenCalledWith('skip', { reason: 'no-amount' });
+    });
+  });
 });
