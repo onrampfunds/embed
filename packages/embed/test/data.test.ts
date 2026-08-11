@@ -18,6 +18,15 @@ describe('isThenable', () => {
       expect(isThenable(value)).toBe(false);
     },
   );
+
+  it('refuses a value whose then accessor throws, rather than letting the exception escape', () => {
+    const trap = Object.defineProperty({}, 'then', {
+      get() {
+        throw new Error('hostile accessor');
+      },
+    });
+    expect(isThenable(trap)).toBe(false);
+  });
 });
 
 describe('fieldsBesideData', () => {

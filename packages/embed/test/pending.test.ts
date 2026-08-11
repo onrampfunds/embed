@@ -68,6 +68,19 @@ describe('mount with data', () => {
       const handle = mount(container, { data: Promise.resolve({}), state: 'loading' as never });
       expect(handle).toBeNull();
     });
+
+    it('refuses a value whose then accessor throws, without the exception escaping', () => {
+      silenceConsole();
+      const onEvent = vi.fn();
+      const trap = Object.defineProperty({}, 'then', {
+        get() {
+          throw new Error('hostile accessor');
+        },
+      });
+      const handle = mount(container, { data: trap as never, onEvent });
+      expect(handle).toBeNull();
+      expect(onEvent).toHaveBeenCalledWith('error', expect.objectContaining({ reason: expect.any(String) }));
+    });
   });
 
   describe('silent pending (the default)', () => {
@@ -78,6 +91,17 @@ describe('mount with data', () => {
       expect(handle?.state).toBe('mounting');
       expect(container.children).toHaveLength(0);
       expect(shadow.roots).toHaveLength(0);
+    });
+
+    it('clears a previously mounted card immediately, like every other mount', () => {
+      mount(container, validConfig());
+      expect(container.children).toHaveLength(1);
+
+      const { promise } = deferred<Partial<MountConfig>>();
+      const handle = mount(container, { data: promise });
+
+      expect(handle?.state).toBe('mounting');
+      expect(container.children).toHaveLength(0);
     });
 
     it('renders the card when the promise resolves, and emits view', async () => {

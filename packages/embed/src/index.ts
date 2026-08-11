@@ -214,6 +214,11 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
   };
 
   if (config !== null && typeof config === 'object' && config.data !== undefined) {
+    // The same replace-on-mount contract as every other path: render() clears before it
+    // validates, so this branch clears on entry too — a silent pending mount must not leave a
+    // previous card visible until the promise settles.
+    clearPrevious(container);
+
     // Read once into a local: the isThenable guard narrows `data` itself, which a destructured
     // alias of `config.data` would not inherit.
     const data = config.data;

@@ -15,7 +15,13 @@ const PAYLOAD_FIELDS = ['amount', 'currency', 'applyUrl', 'lexicon', 'copy'] as 
  */
 export function isThenable(value: unknown): value is PromiseLike<unknown> {
   if (value === null || (typeof value !== 'object' && typeof value !== 'function')) return false;
-  return typeof (value as PromiseLike<unknown>).then === 'function';
+  try {
+    return typeof (value as PromiseLike<unknown>).then === 'function';
+  } catch {
+    // Reading `then` can itself throw — a getter is code. Whatever that object is, it is not a
+    // promise, and the exception must not escape mount() into the partner's page.
+    return false;
+  }
 }
 
 /** Data-bearing keys illegally passed beside `data`, in declaration order, for the log line. */
