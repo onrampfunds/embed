@@ -1,4 +1,6 @@
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MountConfig } from '@onrampfunds/embed';
 import { OnrampPrequalification, version } from '../src/index';
 import { captureShadowRoots, mountHarness, validConfig, type Harness } from './helpers';
 
@@ -234,6 +236,65 @@ describe('OnrampPrequalification', () => {
       harness.render(<OnrampPrequalification {...validConfig()} />);
       expect(harness.hosts()).toHaveLength(1);
       expect(harness.text('.amount__figure')).toBe('$40,000');
+    });
+  });
+
+  describe('the data prop', () => {
+    it('holds silently, then renders the card when the promise resolves', async () => {
+      let resolve!: (value: Partial<MountConfig>) => void;
+      const data = new Promise<Partial<MountConfig>>((res) => {
+        resolve = res;
+      });
+
+      harness = mountHarness();
+      harness.render(<OnrampPrequalification data={data} />);
+      expect(harness.hosts()).toHaveLength(0);
+
+      await act(async () => {
+        resolve(validConfig());
+        await Promise.resolve();
+      });
+
+      expect(harness.hosts()).toHaveLength(1);
+      expect(harness.text('.amount__figure')).toBe('$40,000');
+      harness.unmount();
+    });
+
+    it('does not remount when the same promise reference re-renders', async () => {
+      const data = Promise.resolve(validConfig());
+
+      harness = mountHarness();
+      harness.render(<OnrampPrequalification data={data} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      const rootsAfterFirst = shadow.roots.length;
+
+      harness.render(<OnrampPrequalification data={data} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(shadow.roots.length).toBe(rootsAfterFirst);
+      harness.unmount();
+    });
+
+    it('remounts when the promise reference changes', async () => {
+      harness = mountHarness();
+      harness.render(<OnrampPrequalification data={Promise.resolve(validConfig())} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      const rootsAfterFirst = shadow.roots.length;
+
+      harness.render(<OnrampPrequalification data={Promise.resolve(validConfig({ amount: 25000 }))} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(shadow.roots.length).toBeGreaterThan(rootsAfterFirst);
+      expect(harness.text('.amount__figure')).toBe('$25,000');
+      harness.unmount();
     });
   });
 });
