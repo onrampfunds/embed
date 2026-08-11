@@ -43,3 +43,21 @@ function normalise(value: unknown): unknown {
 export function signatureOf(config: unknown): string {
   return JSON.stringify(normalise(config)) ?? '';
 }
+
+let nextReferenceId = 1;
+const referenceIds = new WeakMap<object, number>();
+
+/**
+ * A stable id for values that only have reference identity. A promise has no serialisable value —
+ * `normalise` would fold every promise to `{}`, making all of them look like the same config — so
+ * the signature carries this id instead: same promise, same signature; new promise, new mount.
+ */
+export function referenceId(value: object): number {
+  let id = referenceIds.get(value);
+  if (id === undefined) {
+    id = nextReferenceId;
+    nextReferenceId += 1;
+    referenceIds.set(value, id);
+  }
+  return id;
+}

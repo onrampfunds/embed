@@ -1,6 +1,6 @@
 import { useEffect, useRef, type CSSProperties, type ReactElement } from 'react';
 import { mount, type MountConfig, type MountHandle } from '@onrampfunds/embed';
-import { signatureOf } from './signature';
+import { referenceId, signatureOf } from './signature';
 
 export interface OnrampPrequalificationProps extends MountConfig {
   /** Applied to the element the card mounts into, so it sits in your own layout. */
@@ -12,10 +12,12 @@ export interface OnrampPrequalificationProps extends MountConfig {
  * Renders the prequalification card.
  *
  * ```tsx
- * <OnrampPrequalification
- *   {...prequalification}
- *   onEvent={(name, meta) => analytics.track(`onramp:${name}`, meta)}
- * />
+ * // Direct data — you already fetched the prequalification:
+ * <OnrampPrequalification {...prequalification} onEvent={track} />
+ *
+ * // Or hand it the fetch itself — create the promise once, not per render:
+ * const [data] = useState(() => fetch('/api/onramp-prequal').then((r) => r.json()));
+ * <OnrampPrequalification data={data} onEvent={track} />
  * ```
  *
  * Every prop except `className` and `style` is the core's mount config, so that package's README
@@ -28,7 +30,7 @@ export interface OnrampPrequalificationProps extends MountConfig {
  * this month must never see something that reads as a rejection.
  */
 export function OnrampPrequalification(props: OnrampPrequalificationProps): ReactElement {
-  const { className, style, onEvent, ...config } = props;
+  const { className, style, onEvent, data, ...config } = props;
 
   const slot = useRef<HTMLDivElement>(null);
   const card = useRef<MountHandle | null>(null);
@@ -38,8 +40,14 @@ export function OnrampPrequalification(props: OnrampPrequalificationProps): Reac
   const latestOnEvent = useRef(onEvent);
   latestOnEvent.current = onEvent;
 
-  // Value identity, not reference identity — see signature.ts.
-  const signature = signatureOf(config);
+  // Value identity for everything serialisable; reference identity for the promise, which has no
+  // value until it settles — and when it settles, the core repaints in place without a remount.
+  // The core accepts function-shaped thenables too, so this must match — `data !== null` still
+  // guards it, since `typeof null === 'object'` would otherwise make `referenceId(null)` throw.
+  const signature =
+    data !== null && (typeof data === 'object' || typeof data === 'function')
+      ? `${signatureOf(config)}|data:${referenceId(data)}`
+      : signatureOf(config);
 
   useEffect(() => {
     const element = slot.current;
@@ -47,6 +55,7 @@ export function OnrampPrequalification(props: OnrampPrequalificationProps): Reac
 
     card.current = mount(element, {
       ...(config as MountConfig),
+      ...(data !== undefined ? { data } : {}),
       onEvent: (name, meta) => {
         latestOnEvent.current?.(name, meta);
       },
@@ -58,9 +67,9 @@ export function OnrampPrequalification(props: OnrampPrequalificationProps): Reac
       card.current?.unmount();
       card.current = null;
     };
-    // `config` is deliberately not a dependency: `signature` is its value-based identity, and the
-    // effect React runs is always the one from the render whose signature changed, so the config
-    // this closes over is current.
+    // `config` and `data` are deliberately not dependencies: `signature` is their combined
+    // identity, and the effect React runs is always the one from the render whose signature
+    // changed, so the config and promise this closes over are current.
   }, [signature]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div ref={slot} className={className} style={style} />;

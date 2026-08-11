@@ -1,6 +1,7 @@
 import { LOG_PREFIX, VERSION } from './constants';
-import { isExpectedApplyHost, normalize } from './config';
+import { isExpectedApplyHost, isObject, normalize } from './config';
 import { resolveCopy } from './copy';
+import { fieldsBesideData, isThenable, mergeResolved } from './data';
 import { formatAmount } from './format';
 import { attachStyles, renderCard } from './render';
 import { resolveTheme, warn } from './theme';
@@ -18,6 +19,14 @@ export type {
 
 /** Marks our host element so a re-mount can clear the previous card instead of stacking on it. */
 const HOST_ATTR = 'data-onramp-embed';
+
+/**
+ * The newest mount() per container. A pending `data` mount's settlement acts only while its
+ * mount still owns the container — a later mount() into the same slot supersedes it exactly as
+ * that handle's own update() or unmount() would. Without this, two pending mounts racing on one
+ * container let the older payload clear and replace the newer card.
+ */
+const owners = new WeakMap<Element, object>();
 
 export const version = VERSION;
 
@@ -95,9 +104,10 @@ function clearPrevious(container: Element): void {
  * The library makes **no network calls**. Everything it renders is the configuration it was
  * handed, which the partner's backend fetched server-side.
  *
- * @returns a handle, or `null` when nothing was rendered — either because there is no amount, or
- * because the configuration was malformed. A `null` return is the partner's cue to render their
- * own fallback into the slot; it never means the merchant was rejected.
+ * @returns a handle, or `null` when nothing was rendered — because there is no amount, or the
+ * configuration was malformed. With a `data` promise, valid config always returns a handle:
+ * there is nothing to decide until the promise settles. A `null` return is the partner's cue to
+ * render their own fallback into the slot; it never means the merchant was rejected.
  */
 export function mount(target: string | Element, config: MountConfig = {}): MountHandle | null {
   if (typeof document === 'undefined') {
@@ -110,6 +120,9 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     fail(`mount target ${describeTarget(target)} did not match an element. Nothing was rendered.`);
     return null;
   }
+
+  const claim = {};
+  owners.set(container, claim);
 
   let state: CardState = 'none';
   let host: HTMLElement | null = null;
@@ -210,6 +223,100 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
 
     return config.state;
   };
+
+  if (config !== null && typeof config === 'object' && config.data !== undefined) {
+    // The same replace-on-mount contract as every other path: render() clears before it
+    // validates, so this branch clears on entry too — a silent pending mount must not leave a
+    // previous card visible until the promise settles.
+    clearPrevious(container);
+
+    // Read once into a local: the isThenable guard narrows `data` itself, which a destructured
+    // alias of `config.data` would not inherit.
+    const data = config.data;
+    const emit = emitter(config);
+    const refuse = (reason: string): null => {
+      fail(`${reason}. Nothing was rendered.`);
+      emit('error', { reason });
+      return null;
+    };
+
+    if (!isThenable(data)) {
+      return refuse('data must be a promise of the prequalification response');
+    }
+    const beside = fieldsBesideData(config);
+    if (beside.length > 0) {
+      return refuse(
+        `${beside.join(', ')} must come from the resolved data payload, not beside it`,
+      );
+    }
+    if (config.state !== undefined && config.state !== null && config.state !== 'auto' && config.state !== 'mounting') {
+      return refuse(`state must be 'auto' or 'mounting', got ${JSON.stringify(config.state)}`);
+    }
+
+    const { data: _spent, ...pageSide } = config;
+
+    // False once the partner has taken over — by update() or unmount() — after which whatever
+    // the promise does is no longer this mount's business.
+    let live = true;
+
+    if (pageSide.state === 'mounting') {
+      state = render(pageSide);
+    } else {
+      // Silent pending: no host, no skeleton, no events. A merchant with no offer never sees
+      // a card-shaped thing appear and dissolve.
+      state = 'mounting';
+    }
+
+    // Spends the settlement on whichever callback runs first: a thenable that calls a callback
+    // twice, or calls both, must still produce exactly one render.
+    const settleRejection = (cause: unknown): void => {
+      if (!live || owners.get(container) !== claim) return;
+      live = false;
+      teardown();
+      clearPrevious(container);
+      state = 'none';
+      emit('error', { reason: cause instanceof Error ? cause.message : String(cause) });
+    };
+
+    try {
+      data.then((payload) => {
+        if (!live || owners.get(container) !== claim) return;
+        live = false;
+        // Non-object payloads cannot be merged; validate directly to get the canonical error message.
+        if (!isObject(payload)) {
+          teardown();
+          clearPrevious(container);
+          const result = normalize(payload);
+          state = 'invalid';
+          const reason = result.ok ? 'config must be an object' : result.reason;
+          fail(`${reason}. Nothing was rendered.`);
+          emit('error', { reason });
+          return;
+        }
+        state = render(mergeResolved(pageSide, payload));
+      }, settleRejection);
+    } catch (thrown) {
+      // A thenable's `then` can throw synchronously instead of settling normally — most often a
+      // hand-rolled one. Treated the same as a rejection: no exception reaches the partner's page.
+      settleRejection(thrown);
+    }
+
+    return {
+      get state(): CardState {
+        return state;
+      },
+      update(next: MountConfig): CardState {
+        live = false;
+        state = render(next);
+        return state;
+      },
+      unmount(): void {
+        live = false;
+        teardown();
+        state = 'none';
+      },
+    };
+  }
 
   state = render(config);
 

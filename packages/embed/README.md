@@ -29,6 +29,20 @@ mount('#capital', {
 Via a script tag, the same call is available as `Onramp.mount(...)`. See the
 [root README](../../README.md#install) for the CDN URL and its integrity hash.
 
+Direct config is the primitive above. If your page fetches the prequalification itself, hand
+`mount()` the fetch instead and skip the pending state entirely:
+
+```js
+mount('#capital', {
+  data: fetch('/api/onramp-prequal').then((r) => r.json()),
+  onEvent: (name, meta) => analytics.track(`onramp:${name}`, meta),
+});
+```
+
+Nothing renders until the promise settles — the card, or nothing at all for a merchant with no
+offer, exactly as if you had passed the values directly. Both forms are equal citizens; see
+`data` in the config table below.
+
 ## `mount(target, config)`
 
 `target` is a CSS selector or an `Element`. The card is appended to it inside its own host element,
@@ -36,6 +50,11 @@ so your element is left exactly as the library found it when you unmount.
 
 Returns a handle, or **`null` when nothing was rendered**. `null` is your cue to render your own
 fallback into the slot — it never means the merchant was rejected.
+
+With `data`, the contract shifts: valid config always returns a handle, because there is nothing
+to decide until the promise settles. An async no-offer outcome never surfaces as `null` — it
+surfaces as the `skip` event and `card.state` becoming `'none'`, so branch on those, not on the
+return value.
 
 ```js
 const card = mount('#capital', config);
@@ -63,7 +82,8 @@ the mount returned.
 | `locale` | `string` | BCP 47. Defaults to the browser's. |
 | `copy` | `object` | The served regulated strings. See below. |
 | `theme` | `object` | The seven tokens. See below. |
-| `state` | `'auto' \| 'mounting'` | Set `mounting` while you fetch client-side. |
+| `state` | `'auto' \| 'mounting'` | Set `mounting` while you fetch client-side, or beside `data` to show it while pending. |
+| `data` | `Promise<object>` | The prequalification response, still in flight. `mount()` waits for it and renders on settle. See below. |
 | `onEvent` | `function` | Analytics callback in your page. It does not phone home. |
 
 ### States
@@ -72,8 +92,36 @@ the mount returned.
 | --- | --- |
 | `prequalified` | The full card. The only state that shows a figure. |
 | `mounting` | Static blocks at roughly the final height. No spinner, no motion. |
-| `none` | Nothing. `mount` returns `null` and yields the slot. Never reads as a rejection. |
+| `none` | Nothing. A direct mount returns `null` and yields the slot; a `data` mount's handle reports it after settling. Never reads as a rejection. |
 | `invalid` | The config was malformed. Nothing renders and the reason is logged. Never a broken card in production. |
+
+### The `data` promise
+
+Direct config — the fields spread in above — is the primitive. `data` is a convenience layered
+on it: hand `mount()` the prequalification still in flight, and it waits.
+
+```js
+mount('#capital', {
+  data: fetch('/api/onramp-prequal').then((r) => r.json()),
+  onEvent: (name, meta) => analytics.track(`onramp:${name}`, meta),
+});
+```
+
+The library still makes **no network requests of its own** — your code creates the promise, so
+your session auth, cancellation, and deadlines are already handled by whatever you used to build
+it. The resolved payload owns `amount`, `currency`, `applyUrl`, `lexicon`, and `copy`; passing any
+of them beside `data` is refused, the same as any other malformed config. Pass `state: 'mounting'`
+to render the skeleton with your `theme`/`partnerName` immediately while the promise is pending —
+without it, a pending `data` mount renders nothing at all, so a merchant with no offer never sees
+a card-shaped placeholder appear and then dissolve.
+
+| On settle | What happens |
+| --- | --- |
+| Resolves with an amount | Renders the card, exactly as if you had passed the values directly. |
+| Resolves with no amount | Yields the slot and reports `skip`, same as direct config. |
+| Rejects | Yields the slot and reports `error` with the rejection reason — "handle failure by rendering the page without the card," automated. |
+| Arrives after `unmount()` | Ignored. No DOM writes, no events. |
+| `update()` is called first | The manual call wins immediately; the promise's later settlement is discarded. |
 
 ### The action
 

@@ -68,12 +68,16 @@ renders from reporting.
 
 ---
 
-## Step 2 — Server: get it into the page
+## Step 2 — Connect the halves
 
-The response is JSON that has to reach your JavaScript. **This is the step that goes wrong**, and
-it goes wrong the same way in every language.
+The response is JSON that has to reach the widget. Two ways, both first-class — pick by how your
+dashboard renders:
 
-Serialise into a `<script type="application/json">` block and parse it in the browser:
+**(a) Direct data.** You already have the response where the page is built. Server-rendered
+pages serialise it into a `<script type="application/json">` block and parse it in the browser —
+**this is the step that goes wrong**, and it goes wrong the same way in every language, so the
+escaping rules below are not optional. Client code that has already fetched just spreads the
+response into `mount()`.
 
 ```html
 <div id="capital"></div>
@@ -121,6 +125,24 @@ echo json_encode($data, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF
 **Also set the charset.** `<meta charset="utf-8">` in the first 1024 bytes of the document. The
 copy contains em dashes; without it they render as `â€"`.
 
+**(b) A `data` promise.** Your page fetches from your own backend instead of the server
+serialising anything into the document. Expose the response at a session-authenticated JSON
+endpoint on your origin and hand `mount()` the fetch:
+
+```js
+Onramp.mount('#capital', {
+  data: fetch('/api/onramp-prequal').then((r) => r.json()),
+  onEvent: (name, meta) => analytics.track(`onramp:${name}`, meta),
+});
+```
+
+This folds the fetch, the pending state, and the no-offer case into one call: nothing renders
+until the promise settles, a merchant with no offer sees nothing appear, and a rejected promise
+yields the slot and reports an `error` event — the "render the page without the card" rule,
+automated. Add `state: 'mounting'` beside `data` to show a themed skeleton while it waits.
+`amount`, `currency`, `applyUrl`, `lexicon`, and `copy` must come from the resolved payload,
+never inline beside `data`.
+
 ---
 
 ## Step 3 — Browser: mount
@@ -132,11 +154,11 @@ This half is exact. Everything below is the real contract.
         integrity="sha384-<published with each release>"
         crossorigin="anonymous"></script>
 <script>
-  var data = JSON.parse(document.getElementById('onramp-data').textContent);
-  data.partnerName = 'Your Platform';
-  data.onEvent = function (name, meta) { yourAnalytics.track('onramp:' + name, meta); };
+  var prequalification = JSON.parse(document.getElementById('onramp-data').textContent);
+  prequalification.partnerName = 'Your Platform';
+  prequalification.onEvent = function (name, meta) { yourAnalytics.track('onramp:' + name, meta); };
 
-  var card = Onramp.mount('#capital', data);
+  var card = Onramp.mount('#capital', prequalification);
   if (card === null) {
     // Nothing rendered. Put your own content in the slot — see "no amount" below.
   }
@@ -175,6 +197,10 @@ wording compliance cannot revise. A prequalified card requires `qualifier`, `mec
 
 `mount()` returns `null` when there is no amount, or when the config is malformed (the reason is
 logged). Check `amount` on the server and decide what fills the slot.
+
+The `data` path cannot use the `null` cue — `mount()` returns a handle while the promise is
+pending. There, a no-offer settlement yields the slot, emits `skip`, and moves `handle.state` to
+`'none'`; branch on the event or the state, not the return value.
 
 **Whatever you put there must never read as a rejection.** A merchant who does not qualify this
 month may qualify next month. Do not write "not eligible", "declined", or "you don't qualify".

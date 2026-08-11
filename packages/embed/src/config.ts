@@ -35,7 +35,7 @@ const CURRENCY = /^[A-Za-z]{3}$/;
  * from another realm — a micro-frontend passing config across an iframe boundary is legitimate,
  * and `instanceof Object` would refuse it — as well as null-prototype objects and class instances.
  */
-function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return Object.prototype.toString.call(value) === '[object Object]';
 }
 
@@ -124,6 +124,13 @@ function normalizeApplyUrl(value: unknown): URL | null {
 export function normalize(raw: unknown): NormalizeResult {
   if (!isObject(raw)) {
     return { ok: false, reason: 'config must be an object' };
+  }
+
+  // `data` is mount()'s to unwrap. By the time a config reaches normalize() — update(), or the
+  // merged payload after a resolve — a data key means the partner passed the promise somewhere
+  // it cannot be awaited, which deserves a loud refusal rather than a silent 'none'.
+  if ((raw as MountConfig).data !== undefined) {
+    return { ok: false, reason: 'data is only accepted at mount(); pass resolved values to update()' };
   }
 
   const config = raw as MountConfig;

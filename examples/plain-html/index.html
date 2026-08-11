@@ -85,6 +85,7 @@
         <button data-state="prequalified" aria-pressed="true">Prequalified</button>
         <button data-state="none" aria-pressed="false">No amount</button>
         <button data-state="mounting" aria-pressed="false">Mounting</button>
+        <button data-state="data" aria-pressed="false">Simulated fetch</button>
         <button data-state="mca" aria-pressed="false">Asset purchase copy</button>
         <button data-state="dark" aria-pressed="false">Dark tokens</button>
         <button data-state="hostile" aria-pressed="false">Failing contrast</button>
@@ -151,6 +152,15 @@
             return { ...base, amount: null };
           case 'mounting':
             return { ...base, state: 'mounting' };
+          case 'data':
+            return {
+              state: 'mounting',
+              // The data path, demoed with canned values behind a delay: skeleton, then the
+              // card — or pass `{ ...base, amount: null }` to watch the no-offer case yield the
+              // slot instead. The library still never fetches; this promise is the page's own.
+              data: new Promise((resolve) => setTimeout(() => resolve(base), 800)),
+              onEvent: base.onEvent,
+            };
           case 'mca':
             return {
               ...base,
