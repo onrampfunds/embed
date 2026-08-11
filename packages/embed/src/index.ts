@@ -254,13 +254,15 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
     data.then(
       (payload) => {
         if (!live) return;
-        // Non-object payloads bypass mergeResolved() to preserve the validation error message,
-        // but we still emit using the pageSide handler for consistency.
+        // Non-object payloads cannot be merged; validate directly to get the canonical error message.
         if (!isObject(payload)) {
           teardown();
           clearPrevious(container);
+          const result = normalize(payload);
           state = 'invalid';
-          emit('error', { reason: 'config must be an object' });
+          const reason = result.ok ? 'config must be an object' : result.reason;
+          fail(`${reason}. Nothing was rendered.`);
+          emit('error', { reason });
           return;
         }
         state = render(mergeResolved(pageSide, payload));

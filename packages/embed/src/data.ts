@@ -31,9 +31,10 @@ export function fieldsBesideData(config: MountConfig): string[] {
  * rule: mount-passed tokens override stored (payload) tokens. `state` and `data` never survive
  * the merge: pending presentation is a page-side concern, and the pending promise is spent.
  *
- * A payload that is not config-shaped passes through untouched so `normalize()` refuses it with
- * its usual message — the partner hears "config must be an object", not a mystery. Page-side
- * handlers (onEvent) are still preserved by modifying render's emit before validation.
+ * A payload that is not config-shaped passes through untouched. The caller (mount's data handler)
+ * validates it separately, logs the error via `fail()`, and emits it via the pageSide's onEvent.
+ * This preserves the canonical error message from `normalize()` and ensures non-object payloads
+ * are logged and reported, not silently dropped.
  */
 export function mergeResolved(pageSide: MountConfig, payload: unknown): MountConfig {
   if (!isObject(payload)) return payload as MountConfig;
