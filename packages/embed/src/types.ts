@@ -5,7 +5,9 @@ export type Lexicon = 'loan' | 'mca';
  * What the card decided to render.
  *
  * - `prequalified` — the full card. The only state that shows a figure.
- * - `mounting` — the partner is still fetching. Static blocks, no spinner.
+ * - `mounting` — awaiting data: either the partner is still fetching, or a `data` promise is
+ *   pending. Shows the static-block skeleton when asked to; a pending `data` mount shows
+ *   nothing by default.
  * - `none` — nothing rendered; the slot is yielded back to the partner.
  * - `invalid` — the config was malformed. Nothing rendered, and the reason is logged.
  */
@@ -83,6 +85,16 @@ export interface MountConfig {
   theme?: ThemeTokens;
   /** Force the mounting placeholder while the partner fetches client-side. */
   state?: 'auto' | 'mounting';
+  /**
+   * The prequalification response, still in flight. When present, `mount()` waits for it and
+   * renders on settle: the card, or nothing for a merchant with no offer. The library never
+   * fetches — the page creates this promise, so the page owns auth, cancellation, and deadlines.
+   *
+   * The payload owns `amount`, `currency`, `applyUrl`, `lexicon`, and `copy`; passing any of
+   * them beside `data` is refused. Keys beside `data` apply immediately: pass `state: 'mounting'`
+   * to show the skeleton while pending — the default shows nothing until the promise settles.
+   */
+  data?: Promise<Partial<MountConfig>> | PromiseLike<Partial<MountConfig>>;
   /** Called for analytics in the partner's own page. Exceptions thrown here are swallowed. */
   onEvent?: (name: EmbedEvent, meta: Record<string, unknown>) => void;
 }

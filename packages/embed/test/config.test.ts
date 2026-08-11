@@ -86,6 +86,11 @@ describe('normalize', () => {
       expect(rejected(undefined)).toContain('object');
     });
 
+    it('refuses a data key — data is only accepted at mount()', () => {
+      const result = normalize({ data: Promise.resolve({}) });
+      expect(result.ok).toBe(false);
+    });
+
     it.each([
       ['a Date', new Date()],
       ['a Map', new Map()],
