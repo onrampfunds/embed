@@ -82,6 +82,22 @@ Onramp.mount('#capital', {
 });
 ```
 
+If your page fetches the prequalification from your backend itself, you can hand `mount()` the
+fetch instead and let it handle the waiting:
+
+```js
+Onramp.mount('#capital', {
+  data: fetch('/api/onramp-prequal').then((r) => r.json()),
+  onEvent: (name, meta) => analytics.track(`onramp:${name}`, meta),
+});
+```
+
+Nothing renders until the promise settles — then the card, or nothing at all for a merchant with
+no offer, exactly as if you had passed the values directly. Add `state: 'mounting'` to show a
+themed skeleton while it waits. The library still makes no network requests of its own: your
+code creates the promise, so your session auth just works. Both forms are equal citizens —
+direct config is the primitive, `data` is a convenience over it.
+
 Full API, token reference, and copy contract: [`packages/embed/README.md`](packages/embed/README.md).
 
 **Writing the server half?** [`INTEGRATING.md`](INTEGRATING.md) covers it language-agnostically —

@@ -68,12 +68,16 @@ renders from reporting.
 
 ---
 
-## Step 2 — Server: get it into the page
+## Step 2 — Connect the halves
 
-The response is JSON that has to reach your JavaScript. **This is the step that goes wrong**, and
-it goes wrong the same way in every language.
+The response is JSON that has to reach the widget. Two ways, both first-class — pick by how your
+dashboard renders:
 
-Serialise into a `<script type="application/json">` block and parse it in the browser:
+**(a) Direct data.** You already have the response where the page is built. Server-rendered
+pages serialise it into a `<script type="application/json">` block and parse it in the browser —
+**this is the step that goes wrong**, and it goes wrong the same way in every language, so the
+escaping rules below are not optional. Client code that has already fetched just spreads the
+response into `mount()`.
 
 ```html
 <div id="capital"></div>
@@ -120,6 +124,24 @@ echo json_encode($data, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF
 
 **Also set the charset.** `<meta charset="utf-8">` in the first 1024 bytes of the document. The
 copy contains em dashes; without it they render as `â€"`.
+
+**(b) A `data` promise.** Your page fetches from your own backend instead of the server
+serialising anything into the document. Expose the response at a session-authenticated JSON
+endpoint on your origin and hand `mount()` the fetch:
+
+```js
+Onramp.mount('#capital', {
+  data: fetch('/api/onramp-prequal').then((r) => r.json()),
+  onEvent: (name, meta) => analytics.track(`onramp:${name}`, meta),
+});
+```
+
+This folds the fetch, the pending state, and the no-offer case into one call: nothing renders
+until the promise settles, a merchant with no offer sees nothing appear, and a rejected promise
+yields the slot and reports an `error` event — the "render the page without the card" rule,
+automated. Add `state: 'mounting'` beside `data` to show a themed skeleton while it waits.
+`amount`, `currency`, `applyUrl`, `lexicon`, and `copy` must come from the resolved payload,
+never inline beside `data`.
 
 ---
 

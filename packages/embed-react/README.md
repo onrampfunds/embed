@@ -29,6 +29,25 @@ Every prop except `className` and `style` **is** the core's mount config, so
 states, and events. In practice you spread the prequalification response straight in, exactly as
 above.
 
+Pass `data` to let the card await your fetch. **Create the promise once** — `useState(() =>
+fetch(...))` or `useMemo` — a fresh promise on every render remounts the card in a loop, because
+a promise has only reference identity.
+
+```tsx
+export function CapitalPanel() {
+  const [data] = useState(() => fetch('/api/onramp-prequal').then((r) => r.json()));
+
+  return (
+    <OnrampPrequalification
+      data={data}
+      onEvent={(name, meta) => analytics.track(`onramp:${name}`, meta)}
+    />
+  );
+}
+```
+
+Direct props are the primitive above; `data` is a convenience over them, not a replacement.
+
 ## What the wrapper actually does
 
 It is a ref and an effect. The core owns everything that carries weight — the closed shadow root,
