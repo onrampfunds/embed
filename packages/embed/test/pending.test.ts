@@ -219,4 +219,61 @@ describe('mount with data', () => {
       expect(onEvent).toHaveBeenCalledWith('skip', { reason: 'no-amount' });
     });
   });
+
+  describe('staleness guards', () => {
+    it('ignores a settlement that arrives after unmount()', async () => {
+      const { promise, resolve } = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      const handle = mount(container, { data: promise, onEvent });
+
+      handle?.unmount();
+      resolve(validConfig());
+      await settle();
+
+      expect(handle?.state).toBe('none');
+      expect(container.children).toHaveLength(0);
+      expect(onEvent).not.toHaveBeenCalled();
+    });
+
+    it('ignores a rejection that arrives after unmount()', async () => {
+      const { promise, reject } = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      const handle = mount(container, { data: promise, onEvent });
+
+      handle?.unmount();
+      reject(new Error('too late to matter'));
+      await settle();
+
+      expect(onEvent).not.toHaveBeenCalledWith('error', expect.anything());
+    });
+
+    it('lets a manual update() supersede the promise, discarding its later settlement', async () => {
+      const { promise, resolve } = deferred<Partial<MountConfig>>();
+      const onEvent = vi.fn();
+      const handle = mount(container, { data: promise, onEvent });
+
+      handle?.update(validConfig({ amount: 25000 }));
+      resolve(validConfig({ amount: 99000 }));
+      await settle();
+
+      expect(handle?.state).toBe('prequalified');
+      const root = shadow.roots[shadow.roots.length - 1];
+      expect(root?.querySelector('.amount__figure')?.textContent?.trim()).toBe('$25,000');
+      expect(onEvent).not.toHaveBeenCalledWith('view', expect.objectContaining({ amount: 99000 }));
+    });
+
+    it('refuses a data key passed to update(), loudly', () => {
+      silenceConsole();
+      const handle = mount(container, validConfig());
+      const onEvent = vi.fn();
+
+      const result = handle?.update({ data: Promise.resolve({}), onEvent });
+
+      expect(result).toBe('invalid');
+      expect(onEvent).toHaveBeenCalledWith(
+        'error',
+        expect.objectContaining({ reason: expect.stringContaining('data is only accepted at mount()') }),
+      );
+    });
+  });
 });
