@@ -105,10 +105,10 @@ mount('#capital', {
 The library still makes **no network requests of its own** — your code creates the promise, so
 your session auth, cancellation, and deadlines are already handled by whatever you used to build
 it. The resolved payload owns `amount`, `currency`, `applyUrl`, `lexicon`, and `copy`; passing any
-of them beside `data` is refused, the same as any other malformed config. Keys beside `data` apply
-immediately — `theme` and `partnerName` render right away, and `state: 'mounting'` shows a themed
-skeleton while it waits. Without it, a pending `data` mount renders nothing at all, so a merchant
-with no offer never sees a card-shaped placeholder appear and then dissolve.
+of them beside `data` is refused, the same as any other malformed config. Pass `state: 'mounting'`
+to render the skeleton with your `theme`/`partnerName` immediately while the promise is pending —
+without it, a pending `data` mount renders nothing at all, so a merchant with no offer never sees
+a card-shaped placeholder appear and then dissolve.
 
 | On settle | What happens |
 | --- | --- |
