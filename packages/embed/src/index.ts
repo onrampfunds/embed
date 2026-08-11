@@ -1,6 +1,7 @@
 import { LOG_PREFIX, VERSION } from './constants';
 import { isExpectedApplyHost, normalize } from './config';
 import { resolveCopy } from './copy';
+import { fieldsBesideData, isThenable, mergeResolved } from './data';
 import { formatAmount } from './format';
 import { attachStyles, renderCard } from './render';
 import { resolveTheme, warn } from './theme';
@@ -95,9 +96,10 @@ function clearPrevious(container: Element): void {
  * The library makes **no network calls**. Everything it renders is the configuration it was
  * handed, which the partner's backend fetched server-side.
  *
- * @returns a handle, or `null` when nothing was rendered — either because there is no amount, or
- * because the configuration was malformed. A `null` return is the partner's cue to render their
- * own fallback into the slot; it never means the merchant was rejected.
+ * @returns a handle, or `null` when nothing was rendered — because there is no amount, or the
+ * configuration was malformed. With a `data` promise, valid config always returns a handle:
+ * there is nothing to decide until the promise settles. A `null` return is the partner's cue to
+ * render their own fallback into the slot; it never means the merchant was rejected.
  */
 export function mount(target: string | Element, config: MountConfig = {}): MountHandle | null {
   if (typeof document === 'undefined') {
@@ -210,6 +212,75 @@ export function mount(target: string | Element, config: MountConfig = {}): Mount
 
     return config.state;
   };
+
+  if (config !== null && typeof config === 'object' && config.data !== undefined) {
+    // Read once into a local: the isThenable guard narrows `data` itself, which a destructured
+    // alias of `config.data` would not inherit.
+    const data = config.data;
+    const emit = emitter(config);
+    const refuse = (reason: string): null => {
+      fail(`${reason}. Nothing was rendered.`);
+      emit('error', { reason });
+      return null;
+    };
+
+    if (!isThenable(data)) {
+      return refuse('data must be a promise of the prequalification response');
+    }
+    const beside = fieldsBesideData(config);
+    if (beside.length > 0) {
+      return refuse(
+        `${beside.join(', ')} must come from the resolved data payload, not beside it`,
+      );
+    }
+    if (config.state !== undefined && config.state !== null && config.state !== 'auto' && config.state !== 'mounting') {
+      return refuse(`state must be 'auto' or 'mounting', got ${JSON.stringify(config.state)}`);
+    }
+
+    const { data: _spent, ...pageSide } = config;
+
+    // False once the partner has taken over — by update() or unmount() — after which whatever
+    // the promise does is no longer this mount's business.
+    let live = true;
+
+    if (pageSide.state === 'mounting') {
+      state = render(pageSide);
+    } else {
+      // Silent pending: no host, no skeleton, no events. A merchant with no offer never sees
+      // a card-shaped thing appear and dissolve.
+      state = 'mounting';
+    }
+
+    data.then(
+      (payload) => {
+        if (!live) return;
+        state = render(mergeResolved(pageSide, payload));
+      },
+      (cause: unknown) => {
+        if (!live) return;
+        teardown();
+        clearPrevious(container);
+        state = 'none';
+        emit('error', { reason: cause instanceof Error ? cause.message : String(cause) });
+      },
+    );
+
+    return {
+      get state(): CardState {
+        return state;
+      },
+      update(next: MountConfig): CardState {
+        live = false;
+        state = render(next);
+        return state;
+      },
+      unmount(): void {
+        live = false;
+        teardown();
+        state = 'none';
+      },
+    };
+  }
 
   state = render(config);
 
