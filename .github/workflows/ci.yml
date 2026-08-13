@@ -81,10 +81,10 @@ jobs:
       # run and hung past nine minutes on another with no output — an intermittent lock or prompt,
       # and the reason this job looked stuck rather than slow.
       #
-      # GitHub's ubuntu runner image already ships the shared libraries Chromium links against, so
-      # apt buys nothing here. If a library ever is genuinely missing, Playwright fails at launch
-      # naming it, which is a visible and actionable failure — unlike a silent hang that burns the
-      # six-hour default timeout.
+      # GitHub's ubuntu runner image already ships the shared libraries these browsers link
+      # against, so apt buys nothing here. If a library ever is genuinely missing for any of the
+      # three engines, Playwright fails at launch naming it, which is a visible and actionable
+      # failure — unlike a silent hang that burns the six-hour default timeout.
       - name: Install browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium firefox webkit

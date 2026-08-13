@@ -286,6 +286,7 @@ test.describe('keyboard and screen reader', () => {
     // keeps the last in-page element, Chromium resets to the body).
     await page.evaluate(() => {
       const sentinel = document.createElement('button');
+      sentinel.type = 'button';
       sentinel.id = 'after-card';
       sentinel.textContent = 'after';
       document.body.append(sentinel);

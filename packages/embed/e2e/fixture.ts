@@ -109,7 +109,10 @@ export async function mountCard(page: Page, config: MountConfig): Promise<void> 
  * Safari's "Option+Tab to reach links" behaviour, so a bare Tab skips the
  * card's anchor entirely; the Linux builds that run in CI honour a plain Tab.
  */
-export async function pressTab(page: Page, browserName: string): Promise<void> {
+export async function pressTab(
+  page: Page,
+  browserName: 'chromium' | 'firefox' | 'webkit',
+): Promise<void> {
   const key =
     browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
   await page.keyboard.press(key);
