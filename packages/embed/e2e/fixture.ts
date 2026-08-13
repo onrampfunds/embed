@@ -104,6 +104,17 @@ export async function mountCard(page: Page, config: MountConfig): Promise<void> 
   }, config as unknown as Record<string, unknown>);
 }
 
+/**
+ * A Tab keypress that reaches links on every engine. WebKit on macOS keeps
+ * Safari's "Option+Tab to reach links" behaviour, so a bare Tab skips the
+ * card's anchor entirely; the Linux builds that run in CI honour a plain Tab.
+ */
+export async function pressTab(page: Page, browserName: string): Promise<void> {
+  const key =
+    browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab';
+  await page.keyboard.press(key);
+}
+
 /** Resolved styles for one element inside the captured shadow root. */
 export async function styleOf(
   page: Page,

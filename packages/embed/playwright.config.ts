@@ -11,8 +11,14 @@ export default defineConfig({
   retries: process.env['CI'] === undefined ? 0 : 1,
   reporter: process.env['CI'] === undefined ? 'list' : [['list'], ['html', { open: 'never' }]],
   use: {
-    ...devices['Desktop Chrome'],
     trace: 'on-first-retry',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // The exit criterion names Chrome, Safari, Firefox, and mobile Safari;
+  // this matrix is what closes it by evidence rather than assumption.
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'mobile-webkit', use: { ...devices['iPhone 13'] } },
+  ],
 });

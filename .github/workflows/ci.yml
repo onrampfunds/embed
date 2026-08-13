@@ -82,9 +82,9 @@ jobs:
       # apt buys nothing here. If a library ever is genuinely missing, Playwright fails at launch
       # naming it, which is a visible and actionable failure — unlike a silent hang that burns the
       # six-hour default timeout.
-      - name: Install Chromium
+      - name: Install browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
+        run: npx playwright install chromium firefox webkit
 
       # Style isolation across the shadow boundary, container queries, keyboard
       # operability, and a request count of zero during a mount. None of these can
