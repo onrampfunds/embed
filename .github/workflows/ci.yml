@@ -68,11 +68,14 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Playwright ${version}"
 
+      # The browser set is part of the key: a version-only key served a
+      # chromium-only cache after the matrix grew, silently skipping the
+      # install step for engines the cache had never seen.
       - uses: actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-firefox-webkit
 
       # Deliberately not `--with-deps`. That flag shells out to apt, which took 21 seconds on one
       # run and hung past nine minutes on another with no output — an intermittent lock or prompt,
