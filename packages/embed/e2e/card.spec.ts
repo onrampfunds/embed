@@ -5,6 +5,7 @@ import {
   HOSTILE_PARTNER_CSS,
   loadPartnerPage,
   mountCard,
+  pressTab,
   styleOf,
   UMD_BUNDLE,
 } from './fixture';
@@ -278,8 +279,20 @@ test.describe('keyboard and screen reader', () => {
     await mountCard(page, CONFIG);
   });
 
-  test('reaches the action with Tab, and it is the only stop', async ({ page }) => {
-    await page.keyboard.press('Tab');
+  test('reaches the action with Tab, and it is the only stop', async ({ page, browserName }) => {
+    // Focus needs somewhere in-document to land after the card: when the CTA
+    // is the last tabbable node on the page, engines disagree about what
+    // activeElement reports once focus moves into browser chrome (Firefox
+    // keeps the last in-page element, Chromium resets to the body).
+    await page.evaluate(() => {
+      const sentinel = document.createElement('button');
+      sentinel.type = 'button';
+      sentinel.id = 'after-card';
+      sentinel.textContent = 'after';
+      document.body.append(sentinel);
+    });
+
+    await pressTab(page, browserName);
 
     const focused = await page.evaluate(() => {
       const root = window.__roots[0];
@@ -291,13 +304,17 @@ test.describe('keyboard and screen reader', () => {
     expect(focused).toEqual({ className: 'cta', tag: 'A' });
 
     // A second Tab must leave the card entirely — there is only one focusable element.
-    await page.keyboard.press('Tab');
-    const stillInside = await page.evaluate(() => window.__roots[0]?.activeElement !== null);
-    expect(stillInside).toBe(false);
+    await pressTab(page, browserName);
+    const after = await page.evaluate(() => ({
+      stillInside: window.__roots[0]?.activeElement !== null,
+      landedOn: document.activeElement?.id ?? null,
+    }));
+    expect(after.stillInside).toBe(false);
+    expect(after.landedOn).toBe('after-card');
   });
 
-  test('shows a visible focus ring when reached by keyboard', async ({ page }) => {
-    await page.keyboard.press('Tab');
+  test('shows a visible focus ring when reached by keyboard', async ({ page, browserName }) => {
+    await pressTab(page, browserName);
     const outline = await page.evaluate(() => {
       const cta = window.__roots[0]?.querySelector('.cta');
       if (cta === null || cta === undefined) return null;

@@ -68,23 +68,38 @@ jobs:
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "Playwright ${version}"
 
+      # The browser set is part of the key: a version-only key served a
+      # chromium-only cache after the matrix grew, silently skipping the
+      # install step for engines the cache had never seen.
       - uses: actions/cache@v4
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium-firefox-webkit
 
       # Deliberately not `--with-deps`. That flag shells out to apt, which took 21 seconds on one
       # run and hung past nine minutes on another with no output — an intermittent lock or prompt,
       # and the reason this job looked stuck rather than slow.
       #
-      # GitHub's ubuntu runner image already ships the shared libraries Chromium links against, so
-      # apt buys nothing here. If a library ever is genuinely missing, Playwright fails at launch
-      # naming it, which is a visible and actionable failure — unlike a silent hang that burns the
-      # six-hour default timeout.
-      - name: Install Chromium
+      # GitHub's ubuntu runner image already ships the shared libraries these browsers link
+      # against, so apt buys nothing here. If a library ever is genuinely missing for any of the
+      # three engines, Playwright fails at launch naming it, which is a visible and actionable
+      # failure — unlike a silent hang that burns the six-hour default timeout.
+      - name: Install browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
+        run: npx playwright install chromium firefox webkit
+
+      # WebKit is the one engine the runner image cannot launch bare — GTK4,
+      # gstreamer, and eleven friends are missing, and pinning that list by
+      # hand would rot across runner and Playwright upgrades. This resolves
+      # the same list dynamically; Chromium and Firefox stay apt-free. The
+      # step timeout is what retires the old fear about apt hanging under
+      # `--with-deps`: a hang now fails in five visible minutes instead of
+      # burning the job's six-hour default. Unconditional because system
+      # libraries live outside the ms-playwright cache.
+      - name: Install WebKit's system dependencies
+        timeout-minutes: 5
+        run: npx playwright install-deps webkit
 
       # Style isolation across the shadow boundary, container queries, keyboard
       # operability, and a request count of zero during a mount. None of these can
