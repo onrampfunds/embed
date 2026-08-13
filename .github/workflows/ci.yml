@@ -89,6 +89,16 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium firefox webkit
 
+      # The one library the runner image lacks for WebKit's GTK4 port —
+      # Playwright named it at launch, exactly as the note above promises.
+      # A single pinned package keeps apt's involvement small and fast where
+      # `--with-deps` has hung for minutes; unconditional because system
+      # libraries live outside the ms-playwright cache. The timeout turns
+      # any future apt hang into a fast, visible failure.
+      - name: Install WebKit's missing system library
+        timeout-minutes: 5
+        run: sudo apt-get install -y --no-install-recommends libgtk-4-1
+
       # Style isolation across the shadow boundary, container queries, keyboard
       # operability, and a request count of zero during a mount. None of these can
       # be asserted honestly in jsdom.
